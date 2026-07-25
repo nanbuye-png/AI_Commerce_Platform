@@ -1,0 +1,127 @@
+/* ============================================================
+   Design Tokens
+   基于 ai-commerce-ui-designer Skill 规范
+   ============================================================ */
+
+:root {
+  /* ── 色彩体系 ── */
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #F5F5F7;
+  --color-bg-tertiary: #E8E8ED;
+
+  --color-text-primary: #1D1D1F;
+  --color-text-secondary: #86868B;
+  --color-text-tertiary: #A1A1A6;
+  --color-text-inverse: #FFFFFF;
+
+  --color-accent: #0071E3;
+  --color-accent-hover: #0077ED;
+  --color-accent-active: #0068CC;
+  --color-accent-light: #E8F0FE;
+
+  --color-border: #D2D2D7;
+  --color-border-light: #E8E8ED;
+
+  --color-success: #34C759;
+  --color-warning: #FF9F0A;
+  --color-error: #FF453A;
+  --color-info: #5AC8FA;
+
+  --color-promotion: #FF453A;
+
+  /* ── 间距体系 ── */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+  --spacing-4xl: 96px;
+
+  /* ── 圆角 ── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* ── 阴影 ── */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.12);
+
+  /* ── 字体层级 ── */
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+
+  --font-size-hero: 36px;
+  --font-size-h1: 28px;
+  --font-size-h2: 22px;
+  --font-size-h3: 18px;
+  --font-size-body: 16px;
+  --font-size-caption: 13px;
+  --font-size-small: 11px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.1;
+  --line-height-compact: 1.25;
+  --line-height-normal: 1.5;
+
+  /* ── 过渡 ── */
+  --transition-fast: 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-normal: 300ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-slow: 500ms cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* ── 布局尺寸 ── */
+  --header-height: 56px;
+  --footer-height: 120px;
+  --bottom-nav-height: 56px;
+
+  /* ── Z-index 层级 ── */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+/* ── 暗色模式 ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-primary: #000000;
+    --color-bg-secondary: #1D1D1F;
+    --color-bg-tertiary: #2D2D2F;
+
+    --color-text-primary: #F5F5F7;
+    --color-text-secondary: #A1A1A6;
+    --color-text-tertiary: #6E6E73;
+    --color-text-inverse: #000000;
+
+    --color-accent: #2997FF;
+    --color-accent-hover: #40A9FF;
+    --color-accent-active: #0088FF;
+    --color-accent-light: #1A3A5C;
+
+    --color-border: #424245;
+    --color-border-light: #2D2D2F;
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ── 桌面端字体放大 ── */
+@media (min-width: 1024px) {
+  :root {
+    --font-size-hero: 56px;
+    --font-size-h1: 40px;
+    --font-size-h2: 32px;
+    --font-size-h3: 24px;
+    --font-size-body: 17px;
+  }
+}
