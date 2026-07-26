@@ -1,0 +1,87 @@
+package com.commerce.platform.order.controller;
+
+import com.commerce.platform.common.entity.Result;
+import com.commerce.platform.order.dto.request.MerchantOrderQueryRequest;
+import com.commerce.platform.order.dto.request.ShipOrderRequest;
+import com.commerce.platform.order.dto.response.OrderVO;
+import com.commerce.platform.order.service.MerchantOrderApplicationService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * 商家端订单 Controller
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/merchant/orders")
+@RequiredArgsConstructor
+public class MerchantOrderController {
+
+    private final MerchantOrderApplicationService merchantOrderApplicationService;
+
+    /**
+     * 查询商家订单列表
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('MERCHANT')")
+    public Result<Page<OrderVO>> listMerchantOrders(Authentication authentication,
+                                                     MerchantOrderQueryRequest query) {
+        Long merchantId = getMerchantId(authentication);
+        log.info("商家查询订单列表 - merchantId={}, status={}", merchantId, query.getStatus());
+        Page<OrderVO> page = merchantOrderApplicationService.getMerchantOrders(merchantId, query);
+        return Result.success(page);
+    }
+
+    /**
+     * 查询商家订单详情
+     */
+    @GetMapping("/{orderNo}")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public Result<OrderVO> getMerchantOrderDetail(Authentication authentication,
+                                                   @PathVariable String orderNo) {
+        Long merchantId = getMerchantId(authentication);
+        log.info("商家查询订单详情 - merchantId={}, orderNo={}", merchantId, orderNo);
+        OrderVO orderVO = merchantOrderApplicationService.getMerchantOrderDetail(merchantId, orderNo);
+        return Result.success(orderVO);
+    }
+
+    /**
+     * 商家发货
+     */
+    @PostMapping("/{orderNo}/ship")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public Result<Void> shipOrder(Authentication authentication,
+                                   @PathVariable String orderNo,
+                                   @Valid @RequestBody ShipOrderRequest request) {
+        Long merchantId = getMerchantId(authentication);
+        log.info("商家发货 - merchantId={}, orderNo={}", merchantId, orderNo);
+        merchantOrderApplicationService.shipOrder(merchantId, orderNo, request);
+        return Result.success();
+    }
+
+    /**
+     * 商家更新备注
+     */
+    @PostMapping("/{orderNo}/remark")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public Result<Void> updateRemark(Authentication authentication,
+                                      @PathVariable String orderNo,
+                                      @RequestBody String remark) {
+        Long merchantId = getMerchantId(authentication);
+        log.info("商家更新备注 - merchantId={}, orderNo={}", merchantId, orderNo);
+        merchantOrderApplicationService.updateMerchantRemark(merchantId, orderNo, remark);
+        return Result.success();
+    }
+
+    private Long getMerchantId(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return 0L;
+        }
+        return (Long) authentication.getPrincipal();
+    }
+}
