@@ -686,11 +686,11 @@ src/main/resources/db/migration/
 
 ### 本地开发
 
-开发环境可使用 `spring.jpa.hibernate.ddl-auto=update` 快速迭代，但生产环境必须使用 Flyway。
+**从 Sprint 9 开始，所有环境（开发、测试、生产）均使用 Flyway + validate 方案，禁止在本地开发中使用 `ddl-auto=update`。**
 
 ---
 
-> **文档版本:** v1.1  
-> **最后更新:** 2026-07-25  
-> **变更:** Sprint 0 Step 3.5 — product_sku 移除 stock 字段（库存归 inventory），category/merchant/store/merchant_user/product_sku/inventory/payment 统一补全 updated_time，inventory 新增 reserved_stock + created_time + updated_time，payment 新增 payment_no + transaction_id UNIQUE 幂等设计，新增索引设计章节，新增 Flyway 数据库迁移策略  
+> **文档版本:** v1.2  
+> **最后更新:** 2026-07-26  
+> **变更:** Sprint 9 Step 0/1 — 统一数据库迁移策略：所有环境使用 Flyway + validate，移除本地开发使用 ddl-auto=update 的推荐  
 > **状态:** 设计阶段 — 仅定义设计规范，不创建 SQL 文件。

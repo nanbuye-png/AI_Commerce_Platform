@@ -315,8 +315,8 @@ src/main/resources/db/migration/
 | 幂等 | 同一版本号不可重复执行 |
 | 事务 | DDL 语句单独一个版本文件 |
 | 兼容 | 新增字段设 DEFAULT 值，不删除旧字段 |
-| 本地开发 | 可用 JPA `ddl-auto=update` 快速迭代 |
-| 生产环境 | 必须使用 Flyway |
+| Hibernate | `spring.jpa.hibernate.ddl-auto=validate`，仅做 Entity 校验，不做 Schema 变更 |
+| Flyway 全域 | Flyway 是**唯一**的数据库 Schema 变更工具，团队开发和生产环境均使用 Flyway |
 
 > **详细设计参见:** [database-design.md](./database-design.md#数据库迁移策略-flyway)
 

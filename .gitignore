@@ -33,6 +33,9 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+app.log
+backend/commerce-platform/app.log
+backend/commerce-platform/dependency-reduced-pom.xml
 
 # Environment
 .env.local
