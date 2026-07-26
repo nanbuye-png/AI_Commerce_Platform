@@ -3,7 +3,6 @@ package com.commerce.platform.inventory.domain.entity;
 import com.commerce.platform.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SQLRestriction;
 
 /**
  * 库存实体

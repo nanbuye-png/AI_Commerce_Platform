@@ -1,6 +1,5 @@
 package com.commerce.platform.inventory.controller;
 
-import com.commerce.platform.common.entity.PageResult;
 import com.commerce.platform.common.entity.Result;
 import com.commerce.platform.inventory.dto.merchant.*;
 import com.commerce.platform.inventory.service.InventoryService;
