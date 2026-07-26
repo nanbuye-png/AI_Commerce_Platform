@@ -40,3 +40,6 @@ backend/commerce-platform/dependency-reduced-pom.xml
 # Environment
 .env.local
 .env.*.local
+
+# Docs - design documents only tracked locally
+docs/
