@@ -5,6 +5,7 @@ import com.commerce.platform.order.domain.enums.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -14,7 +15,7 @@ import java.util.Optional;
  * 订单 Repository
  */
 @Repository
-public interface OrderRepository extends JpaRepository<Order, Long> {
+public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
 
     // ---- Customer queries ----
     Optional<Order> findByOrderNo(String orderNo);
@@ -33,4 +34,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // ---- Admin queries ----
     Page<Order> findByOrderStatus(OrderStatus orderStatus, Pageable pageable);
+    Optional<Order> findByOrderNoAndOrderStatus(String orderNo, OrderStatus orderStatus);
 }

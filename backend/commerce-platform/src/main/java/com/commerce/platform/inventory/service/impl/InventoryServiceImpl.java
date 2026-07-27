@@ -52,11 +52,11 @@ public class InventoryServiceImpl implements InventoryService {
         return page.map(inventory -> {
             InventoryListResponse resp = new InventoryListResponse();
             resp.setId(inventory.getId());
-            resp.setProductSkuId(inventory.getProductSkuId());
+            resp.setProductSkuId(inventory.getSkuId());
             resp.setAvailableStock(inventory.getAvailableStock());
-            resp.setReservedStock(inventory.getReservedStock());
-            resp.setTotalStock(inventory.getTotalStock());
-            resp.setLowStock(inventory.getAvailableStock() <= inventory.getLowStockThreshold());
+            resp.setReservedStock(inventory.getLockedStock());
+            resp.setTotalStock(inventory.getAvailableStock() + inventory.getLockedStock() + inventory.getSoldStock());
+            resp.setLowStock(inventory.getAvailableStock() <= 0);
             return resp;
         });
     }
@@ -67,11 +67,11 @@ public class InventoryServiceImpl implements InventoryService {
 
         InventoryDetailResponse resp = new InventoryDetailResponse();
         resp.setId(inventory.getId());
-        resp.setProductSkuId(inventory.getProductSkuId());
+        resp.setProductSkuId(inventory.getSkuId());
         resp.setAvailableStock(inventory.getAvailableStock());
-        resp.setReservedStock(inventory.getReservedStock());
-        resp.setTotalStock(inventory.getTotalStock());
-        resp.setLowStockThreshold(inventory.getLowStockThreshold());
+        resp.setReservedStock(inventory.getLockedStock());
+        resp.setTotalStock(inventory.getAvailableStock() + inventory.getLockedStock() + inventory.getSoldStock());
+        resp.setLowStockThreshold(0);
         return resp;
     }
 
@@ -100,8 +100,6 @@ public class InventoryServiceImpl implements InventoryService {
                         + "，仅支持 INCREASE / DECREASE");
         }
 
-        // 自动计算 totalStock = availableStock + reservedStock
-        inventory.setTotalStock(inventory.getAvailableStock() + inventory.getReservedStock());
         inventoryRepository.save(inventory);
 
         // 生成库存流水
@@ -121,8 +119,6 @@ public class InventoryServiceImpl implements InventoryService {
 
         // 入库仅支持增加库存
         inventory.setAvailableStock(inventory.getAvailableStock() + quantity);
-        // 自动计算总库存
-        inventory.setTotalStock(inventory.getAvailableStock() + inventory.getReservedStock());
         inventoryRepository.save(inventory);
 
         // 生成入库流水
@@ -130,7 +126,7 @@ public class InventoryServiceImpl implements InventoryService {
                 inventory.getAvailableStock(), request.getRemark(), merchantId);
 
         log.info("商家 {} 入库 SKU ID={}，数量={}，当前可售={}",
-                merchantId, inventory.getProductSkuId(), quantity, inventory.getAvailableStock());
+                merchantId, inventory.getSkuId(), quantity, inventory.getAvailableStock());
     }
 
     @Override
@@ -186,7 +182,7 @@ public class InventoryServiceImpl implements InventoryService {
                                  String remark, Long operatorId) {
         InventoryMovement movement = InventoryMovement.builder()
                 .movementNo(generateMovementNo())
-                .productSkuId(inventory.getProductSkuId())
+                .productSkuId(inventory.getSkuId())
                 .inventoryId(inventory.getId())
                 .movementType(movementType)
                 .quantity(quantity)

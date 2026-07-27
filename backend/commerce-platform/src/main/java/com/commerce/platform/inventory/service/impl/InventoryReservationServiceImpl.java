@@ -65,10 +65,9 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
         // 3. 生成唯一预占编号
         String reservationNo = generateReservationNo();
 
-        // 4. 更新库存（三字段模型）
+        // 4. 更新库存
         inventory.setAvailableStock(inventory.getAvailableStock() - request.getQuantity());
-        inventory.setReservedStock(inventory.getReservedStock() + request.getQuantity());
-        // totalStock 不变（totalStock = available + reserved，此处只转移不减少总量）
+        inventory.setLockedStock(inventory.getLockedStock() + request.getQuantity());
         inventoryRepository.save(inventory);
 
         // 5. 创建 Reservation 记录
@@ -130,7 +129,7 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
                 .orElseThrow(() -> new BusinessException("库存记录不存在：" + reservation.getInventoryId()));
 
         int beforeAvailable = inventory.getAvailableStock();
-        inventory.setReservedStock(inventory.getReservedStock() - request.getQuantity());
+        inventory.setLockedStock(inventory.getLockedStock() - request.getQuantity());
         inventory.setAvailableStock(inventory.getAvailableStock() + request.getQuantity());
         inventoryRepository.save(inventory);
 
@@ -180,9 +179,9 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
         Inventory inventory = inventoryRepository.findById(reservation.getInventoryId())
                 .orElseThrow(() -> new BusinessException("库存记录不存在：" + reservation.getInventoryId()));
 
-        int beforeReserved = inventory.getReservedStock();
-        inventory.setReservedStock(inventory.getReservedStock() - request.getQuantity());
-        inventory.setTotalStock(inventory.getTotalStock() - request.getQuantity());
+        int beforeReserved = inventory.getLockedStock();
+        inventory.setLockedStock(inventory.getLockedStock() - request.getQuantity());
+        inventory.setSoldStock(inventory.getSoldStock() + request.getQuantity());
         // availableStock 不变（已在 reserve 时减少）
         inventoryRepository.save(inventory);
 
@@ -192,7 +191,7 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
 
         // 6. 生成流水
         createMovement(inventory, MovementType.DEDUCT, request.getQuantity(),
-                beforeReserved, inventory.getReservedStock());
+                beforeReserved, inventory.getLockedStock());
 
         // 7. 发布事件
         eventPublisher.publishEvent(new InventoryDeductedEvent(
@@ -257,7 +256,7 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
                                  int quantity, int beforeValue, int afterValue) {
         InventoryMovement movement = InventoryMovement.builder()
                 .movementNo(generateMovementNo())
-                .productSkuId(inventory.getProductSkuId())
+                .productSkuId(inventory.getSkuId())
                 .inventoryId(inventory.getId())
                 .movementType(movementType)
                 .quantity(quantity)

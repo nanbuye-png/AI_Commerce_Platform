@@ -4,6 +4,7 @@ import com.commerce.platform.common.entity.BaseEntity;
 import com.commerce.platform.order.domain.enums.OrderStatus;
 import com.commerce.platform.order.domain.enums.PaymentStatus;
 import com.commerce.platform.order.domain.enums.ShippingStatus;
+import com.commerce.platform.order.exception.InvalidOrderStatusException;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
@@ -16,6 +17,10 @@ import java.util.List;
 /**
  * 订单实体
  * Order Domain 的聚合根。
+ * <p>
+ * 状态流转由 Entity 自身维护，DomainService 只负责协调。
+ * 不允许外部直接 setOrderStatus()。
+ * </p>
  */
 @Entity
 @Table(name = "orders", indexes = {
@@ -112,6 +117,92 @@ public class Order extends BaseEntity {
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private OrderAddress address;
 
+    // ============================================
+    // 领域行为 —— 状态流转（由 Entity 自身维护）
+    // ============================================
+
+    /**
+     * 支付订单
+     * PENDING_PAYMENT → PAID
+     */
+    public void pay() {
+        assertValidStatus(OrderStatus.PENDING_PAYMENT, "支付");
+        this.orderStatus = OrderStatus.PAID;
+        this.paymentStatus = PaymentStatus.PAID;
+        this.paymentTime = LocalDateTime.now();
+    }
+
+    /**
+     * 发货（商家操作）
+     * PAID → PROCESSING → SHIPPED
+     */
+    public void ship() {
+        if (this.orderStatus != OrderStatus.PAID && this.orderStatus != OrderStatus.PROCESSING) {
+            throw new InvalidOrderStatusException(this.orderNo, this.orderStatus.name(), "发货");
+        }
+        if (this.orderStatus == OrderStatus.PAID) {
+            this.orderStatus = OrderStatus.PROCESSING;
+        }
+        this.orderStatus = OrderStatus.SHIPPED;
+        this.shippingStatus = ShippingStatus.SHIPPED;
+        this.shippingTime = LocalDateTime.now();
+    }
+
+    /**
+     * 确认收货
+     * SHIPPED → COMPLETED
+     */
+    public void complete() {
+        assertValidStatus(OrderStatus.SHIPPED, "完成");
+        this.orderStatus = OrderStatus.COMPLETED;
+        this.shippingStatus = ShippingStatus.RECEIVED;
+        this.completedTime = LocalDateTime.now();
+    }
+
+    /**
+     * 取消订单（买家或管理员）
+     * PENDING_PAYMENT, PAID → CANCELLED
+     */
+    public void cancel() {
+        if (this.orderStatus != OrderStatus.PENDING_PAYMENT && this.orderStatus != OrderStatus.PAID) {
+            throw new InvalidOrderStatusException(this.orderNo, this.orderStatus.name(), "取消");
+        }
+        this.orderStatus = OrderStatus.CANCELLED;
+        this.cancelledTime = LocalDateTime.now();
+    }
+
+    /**
+     * 关闭订单（管理员对已取消订单操作）
+     * CANCELLED → CLOSED
+     */
+    public void close() {
+        assertValidStatus(OrderStatus.CANCELLED, "关闭");
+        this.orderStatus = OrderStatus.CLOSED;
+    }
+
+    /**
+     * 申请退款
+     * PAID, PROCESSING, SHIPPED, COMPLETED → REFUNDING
+     */
+    public void requestRefund() {
+        if (this.orderStatus != OrderStatus.PAID && this.orderStatus != OrderStatus.PROCESSING
+                && this.orderStatus != OrderStatus.SHIPPED && this.orderStatus != OrderStatus.COMPLETED) {
+            throw new InvalidOrderStatusException(this.orderNo, this.orderStatus.name(), "退款");
+        }
+        this.orderStatus = OrderStatus.REFUNDING;
+        this.paymentStatus = PaymentStatus.REFUNDING;
+    }
+
+    /**
+     * 退款完成
+     * REFUNDING → REFUNDED
+     */
+    public void completeRefund() {
+        assertValidStatus(OrderStatus.REFUNDING, "退款完成");
+        this.orderStatus = OrderStatus.REFUNDED;
+        this.paymentStatus = PaymentStatus.REFUNDED;
+    }
+
     /**
      * 添加订单条目
      */
@@ -127,6 +218,19 @@ public class Order extends BaseEntity {
         this.address = address;
         if (address != null) {
             address.setOrder(this);
+        }
+    }
+
+    // ============================================
+    // 辅助方法
+    // ============================================
+
+    /**
+     * 校验当前状态是否为期望状态，否则抛出异常
+     */
+    private void assertValidStatus(OrderStatus expected, String operation) {
+        if (this.orderStatus != expected) {
+            throw new InvalidOrderStatusException(this.orderNo, this.orderStatus.name(), operation);
         }
     }
 }

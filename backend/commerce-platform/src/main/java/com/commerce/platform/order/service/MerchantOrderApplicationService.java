@@ -3,14 +3,15 @@ package com.commerce.platform.order.service;
 import com.commerce.platform.common.exception.BusinessException;
 import com.commerce.platform.order.domain.entity.Order;
 import com.commerce.platform.order.domain.enums.OrderStatus;
-import com.commerce.platform.order.domain.enums.ShippingStatus;
 import com.commerce.platform.order.domain.repository.OrderRepository;
 import com.commerce.platform.order.dto.request.MerchantOrderQueryRequest;
 import com.commerce.platform.order.dto.request.ShipOrderRequest;
 import com.commerce.platform.order.dto.response.OrderVO;
+import com.commerce.platform.order.event.OrderShippedEvent;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +34,7 @@ public class MerchantOrderApplicationService {
 
     private final OrderRepository orderRepository;
     private final OrderDomainService orderDomainService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 查询商家订单列表
@@ -102,21 +104,11 @@ public class MerchantOrderApplicationService {
         Order order = orderRepository.findByMerchantIdAndOrderNo(merchantId, orderNo)
                 .orElseThrow(() -> new BusinessException(32004, String.format("订单不存在：%s", orderNo)));
 
-        // 校验状态：仅 PAID 或 PROCESSING 可发货
-        if (order.getOrderStatus() != OrderStatus.PAID && order.getOrderStatus() != OrderStatus.PROCESSING) {
-            throw new BusinessException(32005,
-                    String.format("订单状态不允许发货：当前状态=%s", order.getOrderStatus().name()));
-        }
-
-        // 更新订单状态
-        if (order.getOrderStatus() == OrderStatus.PAID) {
-            order.setOrderStatus(OrderStatus.PROCESSING);
-        }
-        order.setOrderStatus(OrderStatus.SHIPPED);
-        order.setShippingStatus(ShippingStatus.SHIPPED);
-        order.setShippingTime(LocalDateTime.now());
-
+        // 领域行为：由 Order Entity 校验并执行状态流转
+        order.ship();
         orderRepository.save(order);
+
+        eventPublisher.publishEvent(new OrderShippedEvent(orderNo, merchantId));
 
         long elapsed = System.currentTimeMillis() - startTime;
         log.info("订单发货成功 - merchantId={}, orderNo={}, logistics={}, trackingNo={}, 耗时={}ms",

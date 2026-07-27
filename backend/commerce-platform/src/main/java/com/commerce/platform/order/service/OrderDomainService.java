@@ -8,6 +8,7 @@ import com.commerce.platform.order.domain.enums.PaymentStatus;
 import com.commerce.platform.order.domain.enums.ShippingStatus;
 import com.commerce.platform.order.dto.request.CreateOrderItemRequest;
 import com.commerce.platform.order.dto.request.CreateOrderRequest;
+import com.commerce.platform.order.dto.response.AdminOrderVO;
 import com.commerce.platform.order.dto.response.OrderAddressVO;
 import com.commerce.platform.order.dto.response.OrderItemVO;
 import com.commerce.platform.order.dto.response.OrderVO;
@@ -25,8 +26,9 @@ import java.util.stream.Collectors;
 /**
  * 订单领域服务
  * <p>
- * 负责订单领域核心逻辑：创建订单聚合、金额计算、状态初始化、可执行操作计算。
+ * 负责订单领域核心逻辑：创建订单聚合、金额计算、VO 构建。
  * 不依赖外部基础设施和跨域服务。
+ * 状态流转逻辑由 Order Entity 自身维护，本服务只负责协调。
  * </p>
  */
 @Service
@@ -149,6 +151,72 @@ public class OrderDomainService {
         builder.canRefund(status == OrderStatus.PAID || status == OrderStatus.PROCESSING
                 || status == OrderStatus.SHIPPED || status == OrderStatus.COMPLETED);
         builder.displayStatus(getDisplayStatus(order));
+
+        // 构建 orderItemVOs
+        if (order.getItems() != null) {
+            List<OrderItemVO> itemVOs = order.getItems().stream()
+                    .map(item -> OrderItemVO.builder()
+                            .id(item.getId())
+                            .skuId(item.getSkuId())
+                            .productId(item.getProductId())
+                            .productName(item.getProductName())
+                            .skuName(item.getSkuName())
+                            .skuCode(item.getSkuCode())
+                            .price(item.getPrice())
+                            .originalPrice(item.getOriginalPrice())
+                            .image(item.getImage())
+                            .quantity(item.getQuantity())
+                            .subtotal(item.getSubtotal())
+                            .build())
+                    .collect(Collectors.toList());
+            builder.items(itemVOs);
+        }
+
+        // 构建 orderAddressVO
+        if (order.getAddress() != null) {
+            OrderAddress addr = order.getAddress();
+            builder.address(OrderAddressVO.builder()
+                    .id(addr.getId())
+                    .receiver(addr.getReceiver())
+                    .phone(addr.getPhone())
+                    .province(addr.getProvince())
+                    .city(addr.getCity())
+                    .district(addr.getDistrict())
+                    .detailAddress(addr.getDetailAddress())
+                    .postalCode(addr.getPostalCode())
+                    .build());
+        }
+
+        return builder.build();
+    }
+
+    /**
+     * 构建 Admin 订单 VO
+     */
+    public AdminOrderVO buildAdminOrderVO(Order order) {
+        AdminOrderVO.AdminOrderVOBuilder builder = AdminOrderVO.builder()
+                .id(order.getId())
+                .orderNo(order.getOrderNo())
+                .buyerId(order.getBuyerId())
+                .merchantId(order.getMerchantId())
+                .storeId(order.getStoreId())
+                .orderStatus(order.getOrderStatus().name())
+                .paymentStatus(order.getPaymentStatus().name())
+                .shippingStatus(order.getShippingStatus().name())
+                .totalAmount(order.getTotalAmount())
+                .productAmount(order.getProductAmount())
+                .freightAmount(order.getFreightAmount())
+                .discountAmount(order.getDiscountAmount())
+                .payAmount(order.getPayAmount())
+                .buyerRemark(order.getBuyerRemark())
+                .merchantRemark(order.getMerchantRemark())
+                .paymentTime(order.getPaymentTime())
+                .shippingTime(order.getShippingTime())
+                .completedTime(order.getCompletedTime())
+                .cancelledTime(order.getCancelledTime())
+                .createdTime(order.getCreatedTime())
+                .updatedTime(order.getUpdatedTime())
+                .displayStatus(getDisplayStatus(order));
 
         // 构建 orderItemVOs
         if (order.getItems() != null) {
