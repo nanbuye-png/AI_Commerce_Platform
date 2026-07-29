@@ -23,7 +23,12 @@ import java.time.LocalDateTime;
  *   ├── 超时未支付 → 定时任务 → [EXPIRED]
  *   └── 售后部分退款 → 部分 RELEASE → [RELEASED]
  * </pre>
+ *
+ * @deprecated Sprint 20 Step 1 — 旧架构，inventory_reservation 表双 Entity 冲突。
+ * 请使用新架构：{@link com.commerce.platform.inventory.reservation.domain.aggregate.StockReservation}
+ * （映射 stock_reservation 表）。此 Entity 将在 Phase 3 删除。
  */
+@Deprecated
 @Entity
 @Table(name = "inventory_reservation", indexes = {
     @Index(name = "idx_reservation_inventory_id", columnList = "inventory_id"),

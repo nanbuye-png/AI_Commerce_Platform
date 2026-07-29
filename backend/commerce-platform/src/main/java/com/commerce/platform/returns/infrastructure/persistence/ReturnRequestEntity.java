@@ -7,6 +7,12 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+/**
+ * 退货 JPA 实体
+ * <p>
+ * 映射到 return_request 表（待 Flyway 创建）
+ * </p>
+ */
 @Entity
 @Table(name = "return_request")
 @Getter
@@ -14,7 +20,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReturnEntity {
+public class ReturnRequestEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -48,6 +55,8 @@ public class ReturnEntity {
 
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 }

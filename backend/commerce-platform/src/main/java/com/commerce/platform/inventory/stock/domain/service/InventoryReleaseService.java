@@ -3,7 +3,7 @@ package com.commerce.platform.inventory.stock.domain.service;
 import com.commerce.platform.inventory.reservation.domain.aggregate.StockReservation;
 import com.commerce.platform.inventory.reservation.domain.valueobject.ReservationStatus;
 import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
-import com.commerce.platform.inventory.stock.domain.repository.InventoryRepository;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class InventoryReleaseService {
 
-    private final InventoryRepository inventoryRepository;
+    private final InventoryStockRepository inventoryRepository;
 
     /**
      * 释放库存

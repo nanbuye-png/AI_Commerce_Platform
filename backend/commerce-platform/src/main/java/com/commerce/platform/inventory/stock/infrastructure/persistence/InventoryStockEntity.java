@@ -1,6 +1,7 @@
 package com.commerce.platform.inventory.stock.infrastructure.persistence;
 
 import com.commerce.platform.common.entity.BaseEntity;
+import com.commerce.platform.inventory.domain.enums.InventoryStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +11,11 @@ import lombok.*;
  * Infrastructure 层的 JPA 实体，用于持久化 InventoryStock 聚合。
  * Domain 层不依赖此类。
  * 库存模型：available_quantity + reserved_quantity = total
+ * </p>
+ * <p>
+ * Sprint 20 Step 4B: 新增 status 字段，与 Inventory Entity 保持一致，
+ * 为 Service 层从旧 Inventory 迁移到 InventoryStockEntity 做准备。
+ * DB 中 status 列已存在（V1__init_schema.sql）。
  * </p>
  */
 @Entity
@@ -37,7 +43,7 @@ public class InventoryStockEntity extends BaseEntity {
     @Builder.Default
     private Integer availableStock = 0;
 
-    /** 已锁定/预占库存 */
+    /** 预占库存 */
     @Column(name = "reserved_stock", nullable = false)
     @Builder.Default
     private Integer reservedStock = 0;
@@ -46,4 +52,10 @@ public class InventoryStockEntity extends BaseEntity {
     @Column(name = "sold_stock", nullable = false)
     @Builder.Default
     private Integer soldStock = 0;
+
+    /** 库存状态 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    @Builder.Default
+    private InventoryStatus status = InventoryStatus.AVAILABLE;
 }

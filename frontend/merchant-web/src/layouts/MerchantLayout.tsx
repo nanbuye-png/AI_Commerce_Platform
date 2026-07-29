@@ -11,6 +11,8 @@ const sidebarItems: SidebarItem[] = [
   { path: '/dashboard', label: '仪表盘', icon: '📊' },
   { path: '/products', label: '商品管理', icon: '📦' },
   { path: '/orders', label: '订单管理', icon: '📋' },
+  { path: '/refunds', label: '退款管理', icon: '💰' },
+  { path: '/returns', label: '退货管理', icon: '📦' },
   { path: '/customers', label: '客户管理', icon: '👥' },
   { path: '/ai-assistant', label: 'AI 商品助手', icon: '🤖' },
   { path: '/settings', label: '设置', icon: '⚙️' },

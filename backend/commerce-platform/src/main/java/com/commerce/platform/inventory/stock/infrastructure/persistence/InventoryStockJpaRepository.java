@@ -22,4 +22,20 @@ interface InventoryStockJpaRepository extends JpaRepository<InventoryStockEntity
      * @return 库存记录
      */
     Optional<InventoryStockEntity> findByProductId(Long productId);
+
+    /**
+     * 根据 SKU ID 查询库存
+     *
+     * @param skuId SKU ID
+     * @return 库存记录
+     */
+    Optional<InventoryStockEntity> findBySkuId(Long skuId);
+
+    /**
+     * 检查 SKU ID 是否已存在
+     *
+     * @param skuId SKU ID
+     * @return true 如果已存在
+     */
+    boolean existsBySkuId(Long skuId);
 }

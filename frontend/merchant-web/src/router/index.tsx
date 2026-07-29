@@ -5,6 +5,10 @@ import ProductListPage from '../features/products/ProductListPage';
 import ProductCreatePage from '../features/products/ProductCreatePage';
 import ProductEditPage from '../features/products/ProductEditPage';
 import OrderListPage from '../features/orders/OrderListPage';
+import RefundListPage from '../features/refunds/RefundListPage';
+import RefundDetailPage from '../features/refunds/RefundDetailPage';
+import ReturnListPage from '../features/returns/ReturnListPage';
+import ReturnDetailPage from '../features/returns/ReturnDetailPage';
 import AIAssistantPage from '../features/ai-assistant/AIAssistantPage';
 import Login from '../pages/Login';
 import ProtectedRoute from './ProtectedRoute';
@@ -31,6 +35,10 @@ const router = createBrowserRouter([
       { path: 'products/create', element: <ProductCreatePage /> },
       { path: 'products/:id/edit', element: <ProductEditPage /> },
       { path: 'orders', element: <OrderListPage /> },
+      { path: 'refunds', element: <RefundListPage /> },
+      { path: 'refunds/:id', element: <RefundDetailPage /> },
+      { path: 'returns', element: <ReturnListPage /> },
+      { path: 'returns/:id', element: <ReturnDetailPage /> },
       { path: 'ai-assistant', element: <AIAssistantPage /> },
       { path: '*', element: <DashboardPage /> },
     ],

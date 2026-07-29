@@ -1,5 +1,6 @@
 package com.commerce.platform.inventory.stock.domain.aggregate;
 
+import com.commerce.platform.inventory.domain.enums.InventoryStatus;
 import com.commerce.platform.inventory.stock.domain.exception.InsufficientStockException;
 
 /**
@@ -18,6 +19,7 @@ public class InventoryStock {
     private Integer availableQuantity;
     private Integer reservedQuantity;
     private Integer soldQuantity;
+    private InventoryStatus status;
 
     /**
      * 创建库存
@@ -34,6 +36,7 @@ public class InventoryStock {
         stock.availableQuantity = availableQuantity;
         stock.reservedQuantity = 0;
         stock.soldQuantity = 0;
+        stock.status = InventoryStatus.AVAILABLE;
         return stock;
     }
 
@@ -43,6 +46,15 @@ public class InventoryStock {
     public static InventoryStock restore(Long id, Long productId, Long skuId,
                                          Integer availableQuantity, Integer reservedQuantity,
                                          Integer soldQuantity) {
+        return restore(id, productId, skuId, availableQuantity, reservedQuantity, soldQuantity, InventoryStatus.AVAILABLE);
+    }
+
+    /**
+     * 从持久化恢复库存（含 status，Sprint 20 Step 4B）
+     */
+    public static InventoryStock restore(Long id, Long productId, Long skuId,
+                                         Integer availableQuantity, Integer reservedQuantity,
+                                         Integer soldQuantity, InventoryStatus status) {
         InventoryStock stock = new InventoryStock();
         stock.id = id;
         stock.productId = productId;
@@ -50,6 +62,7 @@ public class InventoryStock {
         stock.availableQuantity = availableQuantity;
         stock.reservedQuantity = reservedQuantity;
         stock.soldQuantity = soldQuantity;
+        stock.status = status != null ? status : InventoryStatus.AVAILABLE;
         return stock;
     }
 
@@ -152,6 +165,41 @@ public class InventoryStock {
 
     public Integer getSoldQuantity() {
         return soldQuantity;
+    }
+
+    /**
+     * 调整可售库存（商家操作，Sprint 21 Step 2B）
+     * <p>
+     * delta>0 → 入库/增加可售库存
+     * delta<0 → 减少可售库存（需校验充足）
+     * </p>
+     *
+     * @param delta 调整量（正数增加，负数减少）
+     */
+    public void adjust(Integer delta) {
+        if (delta == null || delta == 0) {
+            throw new IllegalArgumentException("调整量不能为0: " + delta);
+        }
+        if (delta < 0 && availableQuantity < Math.abs(delta)) {
+            throw new IllegalStateException("可售库存不足: available=" + availableQuantity + ", decrease=" + Math.abs(delta));
+        }
+        this.availableQuantity += delta;
+    }
+
+    /**
+     * 入库增加可售库存（商家操作，Sprint 21 Step 2B）
+     *
+     * @param quantity 入库数量
+     */
+    public void inbound(Integer quantity) {
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalArgumentException("入库数量必须大于0: " + quantity);
+        }
+        this.availableQuantity += quantity;
+    }
+
+    public InventoryStatus getStatus() {
+        return status;
     }
 
     public Integer getTotalQuantity() {

@@ -100,7 +100,7 @@ public class AdminOrderApplicationService {
         order.cancel();
         order = orderRepository.save(order);
 
-        eventPublisher.publishEvent(new OrderCancelledEvent(orderNo, buyerId, adminId, cancelReason));
+        eventPublisher.publishEvent(new OrderCancelledEvent(order.getId(), orderNo, buyerId, adminId, cancelReason));
 
         log.info("Admin 强制取消订单完成 - adminId={}, orderNo={}, reason={}", adminId, orderNo, cancelReason);
         long elapsed = System.currentTimeMillis() - startTime;

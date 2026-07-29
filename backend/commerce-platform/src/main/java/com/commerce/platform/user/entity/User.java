@@ -3,6 +3,7 @@ package com.commerce.platform.user.entity;
 import com.commerce.platform.common.entity.BaseEntity;
 import com.commerce.platform.user.enums.UserRole;
 import com.commerce.platform.user.enums.UserStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,8 +34,10 @@ public class User extends BaseEntity {
 
     /**
      * 密码哈希值，非空
+     * WRITE_ONLY 确保序列化时不会返回给客户端
      */
     @Column(name = "password_hash", nullable = false, length = 255)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String passwordHash;
 
     /**

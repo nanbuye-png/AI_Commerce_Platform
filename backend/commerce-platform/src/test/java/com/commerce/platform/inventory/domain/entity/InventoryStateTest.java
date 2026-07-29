@@ -1,154 +1,183 @@
 package com.commerce.platform.inventory.domain.entity;
 
 import com.commerce.platform.inventory.domain.enums.InventoryStatus;
-import com.commerce.platform.inventory.exception.InsufficientInventoryException;
-import com.commerce.platform.inventory.exception.InvalidInventoryStatusException;
+import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
+import com.commerce.platform.inventory.stock.domain.exception.InsufficientStockException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Inventory Entity 状态转换覆盖测试
+ * InventoryStock Aggregate 领域行为覆盖测试
  * <p>
- * 覆盖所有合法路径和非法路径。
- * 符合任务书中定义的 Inventory 状态机规则。
+ * Sprint 21 Step 2C: Migrated from Inventory Entity to InventoryStock Aggregate.
+ * 测试预占(reserve)/释放(release)/确认(confirm)/调整(adjust)/入库(inbound) 的正向和异常路径。
  * </p>
  */
 class InventoryStateTest {
 
-    private Inventory createInventory(InventoryStatus status, int availableStock) {
-        return Inventory.builder()
-                .productId(1L)
-                .skuId(1001L)
-                .availableStock(availableStock)
-                .lockedStock(0)
-                .soldStock(0)
-                .status(status)
-                .build();
+    private InventoryStock createStock(int availableQuantity, int reservedQuantity, int soldQuantity) {
+        return InventoryStock.restore(1L, 1L, 1001L, availableQuantity, reservedQuantity, soldQuantity, InventoryStatus.AVAILABLE);
     }
 
-    // ======== 正向路径 ========
+    // ======== 正向路径 — reserve ========
 
     @Test
-    @DisplayName("正向路径：AVAILABLE → LOCKED → DEDUCTED")
-    void shouldFollowAvailableToLockedToDeducted() {
-        Inventory inventory = createInventory(InventoryStatus.AVAILABLE, 10);
+    @DisplayName("正向路径：reserve(10) → available-=10, reserved+=10")
+    void shouldReserveStockSuccessfully() {
+        InventoryStock stock = createStock(100, 0, 0);
 
-        inventory.lockStock();
-        assertEquals(InventoryStatus.LOCKED, inventory.getStatus());
-        assertEquals(9, inventory.getAvailableStock());
-        assertEquals(1, inventory.getLockedStock());
-
-        inventory.deductStock();
-        assertEquals(InventoryStatus.DEDUCTED, inventory.getStatus());
-        assertEquals(0, inventory.getLockedStock());
-        assertEquals(1, inventory.getSoldStock());
+        stock.reserve(10);
+        assertEquals(90, stock.getAvailableQuantity());
+        assertEquals(10, stock.getReservedQuantity());
+        assertEquals(0, stock.getSoldQuantity());
     }
 
     @Test
-    @DisplayName("正向路径：LOCKED → RELEASED")
-    void shouldFollowLockedToReleased() {
-        Inventory inventory = createInventory(InventoryStatus.LOCKED, 5);
-        inventory.setLockedStock(1);
+    @DisplayName("正向路径：多次 reserve → available递减, reserved递增")
+    void shouldAllowMultipleReserve() {
+        InventoryStock stock = createStock(50, 5, 0);
 
-        inventory.releaseStock();
-        assertEquals(InventoryStatus.RELEASED, inventory.getStatus());
-        assertEquals(6, inventory.getAvailableStock());
-        assertEquals(0, inventory.getLockedStock());
+        stock.reserve(10);
+        assertEquals(40, stock.getAvailableQuantity());
+        assertEquals(15, stock.getReservedQuantity());
+    }
+
+    // ======== 正向路径 — release ========
+
+    @Test
+    @DisplayName("正向路径：release(10) → reserved-=10, available+=10")
+    void shouldReleaseStockSuccessfully() {
+        InventoryStock stock = createStock(90, 10, 0);
+
+        stock.release(10);
+        assertEquals(100, stock.getAvailableQuantity());
+        assertEquals(0, stock.getReservedQuantity());
+    }
+
+    // ======== 正向路径 — confirm ========
+
+    @Test
+    @DisplayName("正向路径：confirm(10) → reserved-=10, sold+=10")
+    void shouldConfirmStockSuccessfully() {
+        InventoryStock stock = createStock(90, 10, 0);
+
+        stock.confirm(10);
+        assertEquals(0, stock.getReservedQuantity());
+        assertEquals(10, stock.getSoldQuantity());
+    }
+
+    // ======== 正向路径 — adjust / inbound ========
+
+    @Test
+    @DisplayName("正向路径：adjust(10) → available+=10")
+    void shouldAdjustIncreaseSuccessfully() {
+        InventoryStock stock = createStock(100, 0, 0);
+
+        stock.adjust(10);
+        assertEquals(110, stock.getAvailableQuantity());
     }
 
     @Test
-    @DisplayName("正向路径：DEDUCTED → AVAILABLE（恢复库存/退款场景）")
-    void shouldFollowDeductedToAvailable() {
-        Inventory inventory = createInventory(InventoryStatus.DEDUCTED, 5);
-        inventory.setSoldStock(2);
+    @DisplayName("正向路径：adjust(-10) → available-=10")
+    void shouldAdjustDecreaseSuccessfully() {
+        InventoryStock stock = createStock(100, 0, 0);
 
-        inventory.restoreStock();
-        assertEquals(InventoryStatus.AVAILABLE, inventory.getStatus());
-        assertEquals(6, inventory.getAvailableStock());
-        assertEquals(1, inventory.getSoldStock());
+        stock.adjust(-10);
+        assertEquals(90, stock.getAvailableQuantity());
     }
 
     @Test
-    @DisplayName("正向路径：LOCKED 状态下可继续锁定（批量锁定场景）")
-    void shouldAllowLockedToLockBatch() {
-        Inventory inventory = createInventory(InventoryStatus.LOCKED, 5);
-        inventory.setLockedStock(5);
+    @DisplayName("正向路径：inbound(10) → available+=10")
+    void shouldInboundSuccessfully() {
+        InventoryStock stock = createStock(100, 0, 0);
 
-        inventory.lockStock();
-        assertEquals(InventoryStatus.LOCKED, inventory.getStatus());
-        assertEquals(4, inventory.getAvailableStock());
-        assertEquals(6, inventory.getLockedStock());
-    }
-
-    @Test
-    @DisplayName("正向路径：RELEASED 状态下可继续释放（批量释放场景）")
-    void shouldAllowReleasedToReleaseBatch() {
-        Inventory inventory = createInventory(InventoryStatus.RELEASED, 10);
-        inventory.setLockedStock(5);
-
-        inventory.releaseStock();
-        assertEquals(InventoryStatus.RELEASED, inventory.getStatus());
-        assertEquals(11, inventory.getAvailableStock());
-        assertEquals(4, inventory.getLockedStock());
+        stock.inbound(10);
+        assertEquals(110, stock.getAvailableQuantity());
     }
 
     // ======== 异常路径 ========
 
     @Test
-    @DisplayName("异常路径：库存不足时 lockStock() 抛出 InsufficientInventoryException")
+    @DisplayName("异常路径：库存不足时 reserve() 抛出 InsufficientStockException")
     void shouldThrowWhenInsufficientStock() {
-        Inventory inventory = createInventory(InventoryStatus.AVAILABLE, 0);
+        InventoryStock stock = createStock(5, 0, 0);
 
-        assertThrows(InsufficientInventoryException.class, inventory::lockStock);
+        assertThrows(InsufficientStockException.class, () -> stock.reserve(10));
     }
 
     @Test
-    @DisplayName("异常路径：AVAILABLE.deductStock() 抛出 InvalidInventoryStatusException")
-    void shouldNotAllowAvailableToDeduct() {
-        Inventory inventory = createInventory(InventoryStatus.AVAILABLE, 10);
+    @DisplayName("异常路径：reserve(0) 抛出 IllegalArgumentException")
+    void shouldThrowWhenReserveZero() {
+        InventoryStock stock = createStock(10, 0, 0);
 
-        assertThrows(InvalidInventoryStatusException.class, inventory::deductStock);
+        assertThrows(IllegalArgumentException.class, () -> stock.reserve(0));
     }
 
     @Test
-    @DisplayName("异常路径：DEDUCTED.lockStock() 抛出 InvalidInventoryStatusException")
-    void shouldNotAllowDeductedToLock() {
-        Inventory inventory = createInventory(InventoryStatus.DEDUCTED, 5);
+    @DisplayName("异常路径：release(null) 抛出 IllegalArgumentException")
+    void shouldThrowWhenReleaseNull() {
+        InventoryStock stock = createStock(10, 10, 0);
 
-        assertThrows(InvalidInventoryStatusException.class, inventory::lockStock);
+        assertThrows(IllegalArgumentException.class, () -> stock.release(null));
     }
 
     @Test
-    @DisplayName("异常路径：RELEASED.deductStock() 抛出 InvalidInventoryStatusException")
-    void shouldNotAllowReleasedToDeduct() {
-        Inventory inventory = createInventory(InventoryStatus.RELEASED, 5);
+    @DisplayName("异常路径：预占不足时 release() 抛出 IllegalStateException")
+    void shouldThrowWhenReleaseExceedsReserved() {
+        InventoryStock stock = createStock(90, 5, 0);
 
-        assertThrows(InvalidInventoryStatusException.class, inventory::deductStock);
+        assertThrows(IllegalStateException.class, () -> stock.release(10));
     }
 
     @Test
-    @DisplayName("异常路径：AVAILABLE.releaseStock() 抛出 InvalidInventoryStatusException")
-    void shouldNotAllowAvailableToRelease() {
-        Inventory inventory = createInventory(InventoryStatus.AVAILABLE, 10);
+    @DisplayName("异常路径：confirm(0) 抛出 IllegalArgumentException")
+    void shouldThrowWhenConfirmZero() {
+        InventoryStock stock = createStock(10, 10, 0);
 
-        assertThrows(InvalidInventoryStatusException.class, inventory::releaseStock);
+        assertThrows(IllegalArgumentException.class, () -> stock.confirm(0));
     }
 
     @Test
-    @DisplayName("异常路径：AVAILABLE.restoreStock() 抛出 InvalidInventoryStatusException")
-    void shouldNotAllowAvailableToRestore() {
-        Inventory inventory = createInventory(InventoryStatus.AVAILABLE, 10);
+    @DisplayName("异常路径：adjust(0) 抛出 IllegalArgumentException")
+    void shouldThrowWhenAdjustZero() {
+        InventoryStock stock = createStock(10, 0, 0);
 
-        assertThrows(InvalidInventoryStatusException.class, inventory::restoreStock);
+        assertThrows(IllegalArgumentException.class, () -> stock.adjust(0));
     }
 
     @Test
-    @DisplayName("异常路径：RELEASED.lockStock() 抛出 InvalidInventoryStatusException")
-    void shouldNotAllowReleasedToLock() {
-        Inventory inventory = createInventory(InventoryStatus.RELEASED, 5);
+    @DisplayName("异常路径：减少超过可售库存时 adjust() 抛出 IllegalStateException")
+    void shouldThrowWhenDecreaseExceedsAvailable() {
+        InventoryStock stock = createStock(5, 0, 0);
 
-        assertThrows(InvalidInventoryStatusException.class, inventory::lockStock);
+        assertThrows(IllegalStateException.class, () -> stock.adjust(-10));
+    }
+
+    @Test
+    @DisplayName("异常路径：inbound(0) 抛出 IllegalArgumentException")
+    void shouldThrowWhenInboundZero() {
+        InventoryStock stock = createStock(10, 0, 0);
+
+        assertThrows(IllegalArgumentException.class, () -> stock.inbound(0));
+    }
+
+    // ======== Getters ========
+
+    @Test
+    @DisplayName("getTotalQuantity 返回 available + reserved")
+    void shouldReturnCorrectTotalQuantity() {
+        InventoryStock stock = createStock(80, 20, 0);
+
+        assertEquals(100, stock.getTotalQuantity());
+    }
+
+    @Test
+    @DisplayName("getStatus 返回 AVAILABLE")
+    void shouldReturnAvailableStatus() {
+        InventoryStock stock = createStock(100, 0, 0);
+
+        assertEquals(InventoryStatus.AVAILABLE, stock.getStatus());
     }
 }

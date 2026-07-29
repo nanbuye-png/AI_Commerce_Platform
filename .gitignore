@@ -43,3 +43,4 @@ backend/commerce-platform/dependency-reduced-pom.xml
 
 # Docs - design documents only tracked locally
 docs/
+reports/

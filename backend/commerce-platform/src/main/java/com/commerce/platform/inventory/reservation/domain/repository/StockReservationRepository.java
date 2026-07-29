@@ -28,4 +28,22 @@ public interface StockReservationRepository {
      * @return 库存预占 Optional
      */
     Optional<StockReservation> findById(Long id);
+
+    /**
+     * 根据订单ID和商品ID查询库存预占（Sprint 20 Step 4C）
+     *
+     * @param orderId   订单ID
+     * @param productId 商品ID
+     * @return 库存预占 Optional
+     */
+    Optional<StockReservation> findByOrderIdAndProductId(Long orderId, Long productId);
+
+    /**
+     * 检查订单和商品是否已有预占记录（Sprint 20 Step 4C）
+     *
+     * @param orderId   订单ID
+     * @param productId 商品ID
+     * @return true 如果已存在
+     */
+    boolean existsByOrderIdAndProductId(Long orderId, Long productId);
 }

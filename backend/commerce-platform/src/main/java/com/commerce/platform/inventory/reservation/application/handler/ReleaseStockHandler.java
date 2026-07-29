@@ -6,7 +6,7 @@ import com.commerce.platform.inventory.reservation.domain.event.StockReleasedEve
 import com.commerce.platform.inventory.reservation.domain.repository.StockReservationRepository;
 import com.commerce.platform.inventory.reservation.domain.valueobject.ReservationStatus;
 import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
-import com.commerce.platform.inventory.stock.domain.repository.InventoryRepository;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.inventory.stock.domain.service.InventoryReleaseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReleaseStockHandler {
 
     private final StockReservationRepository stockReservationRepository;
-    private final InventoryRepository inventoryRepository;
+    private final InventoryStockRepository inventoryRepository;
     private final InventoryReleaseService inventoryReleaseService;
     private final ApplicationEventPublisher eventPublisher;
 

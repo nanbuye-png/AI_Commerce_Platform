@@ -10,7 +10,7 @@ import com.commerce.platform.inventory.reservation.domain.event.StockReservedEve
 import com.commerce.platform.inventory.reservation.domain.repository.StockReservationRepository;
 import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
 import com.commerce.platform.inventory.stock.domain.exception.InsufficientStockException;
-import com.commerce.platform.inventory.stock.domain.repository.InventoryRepository;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.inventory.stock.domain.service.InventoryReleaseService;
 import com.commerce.platform.inventory.stock.domain.service.InventoryReservationService;
 import com.commerce.platform.inventory.reservation.domain.valueobject.ReservationStatus;
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.*;
 class ReservationHandlerTest {
 
     @Mock
-    private InventoryRepository inventoryRepository;
+    private InventoryStockRepository inventoryRepository;
 
     @Mock
     private StockReservationRepository stockReservationRepository;

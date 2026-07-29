@@ -1,11 +1,13 @@
 package com.commerce.platform.inventory.stock.infrastructure.persistence;
 
 import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
-import com.commerce.platform.inventory.stock.domain.repository.InventoryRepository;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 库存仓储实现
@@ -16,13 +18,35 @@ import java.util.Optional;
  */
 @Component
 @RequiredArgsConstructor
-public class InventoryRepositoryImpl implements InventoryRepository {
+public class InventoryRepositoryImpl implements InventoryStockRepository {
 
     private final InventoryStockJpaRepository jpaRepository;
 
     @Override
     public Optional<InventoryStock> findByProductId(Long productId) {
         return jpaRepository.findByProductId(productId).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<InventoryStock> findBySkuId(Long skuId) {
+        return jpaRepository.findBySkuId(skuId).map(this::toDomain);
+    }
+
+    @Override
+    public Optional<InventoryStock> findById(Long id) {
+        return jpaRepository.findById(id).map(this::toDomain);
+    }
+
+    @Override
+    public boolean existsBySkuId(Long skuId) {
+        return jpaRepository.existsBySkuId(skuId);
+    }
+
+    @Override
+    public List<InventoryStock> findAll() {
+        return jpaRepository.findAll().stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -45,6 +69,7 @@ public class InventoryRepositoryImpl implements InventoryRepository {
         entity.setAvailableStock(domain.getAvailableQuantity());
         entity.setReservedStock(domain.getReservedQuantity());
         entity.setSoldStock(domain.getSoldQuantity());
+        entity.setStatus(domain.getStatus());
         return entity;
     }
 
@@ -58,7 +83,8 @@ public class InventoryRepositoryImpl implements InventoryRepository {
                 entity.getSkuId(),
                 entity.getAvailableStock(),
                 entity.getReservedStock(),
-                entity.getSoldStock()
+                entity.getSoldStock(),
+                entity.getStatus()
         );
     }
 }

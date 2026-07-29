@@ -66,9 +66,9 @@ public class OrderCreationApplicationService {
         orderRepository.save(order);
 
         var orderItems = request.getItems().stream()
-                .map(item -> new OrderCreatedEvent.OrderItemDto(item.getSkuId(), item.getQuantity()))
+                .map(item -> new OrderCreatedEvent.OrderItemDto(item.getSkuId(), item.getProductId(), item.getQuantity()))
                 .collect(Collectors.toList());
-        eventPublisher.publishEvent(new OrderCreatedEvent(orderNo, request.getUserId(), orderItems));
+        eventPublisher.publishEvent(new OrderCreatedEvent(order.getId(), orderNo, request.getUserId(), orderItems));
 
         // 发布订单创建待支付事件（触发 Payment 模块创建支付）
         eventPublisher.publishEvent(new OrderCreatedForPaymentEvent(

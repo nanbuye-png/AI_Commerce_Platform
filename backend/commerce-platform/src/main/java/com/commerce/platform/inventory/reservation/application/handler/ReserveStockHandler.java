@@ -6,7 +6,7 @@ import com.commerce.platform.inventory.reservation.domain.event.StockReservedEve
 import com.commerce.platform.inventory.reservation.domain.repository.StockReservationRepository;
 import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
 import com.commerce.platform.inventory.stock.domain.exception.InsufficientStockException;
-import com.commerce.platform.inventory.stock.domain.repository.InventoryRepository;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.inventory.stock.domain.service.InventoryReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ReserveStockHandler {
 
-    private final InventoryRepository inventoryRepository;
+    private final InventoryStockRepository inventoryRepository;
     private final StockReservationRepository stockReservationRepository;
     private final InventoryReservationService inventoryReservationService;
     private final ApplicationEventPublisher eventPublisher;

@@ -1,19 +1,19 @@
 package com.commerce.platform.inventory.service.impl;
 
 import com.commerce.platform.common.exception.BusinessException;
-import com.commerce.platform.inventory.domain.entity.Inventory;
 import com.commerce.platform.inventory.domain.entity.InventoryMovement;
 import com.commerce.platform.inventory.domain.entity.InventoryReservation;
 import com.commerce.platform.inventory.domain.enums.MovementType;
 import com.commerce.platform.inventory.domain.enums.ReservationStatus;
 import com.commerce.platform.inventory.domain.repository.InventoryMovementRepository;
-import com.commerce.platform.inventory.domain.repository.InventoryRepository;
 import com.commerce.platform.inventory.domain.repository.InventoryReservationRepository;
 import com.commerce.platform.inventory.dto.reservation.*;
 import com.commerce.platform.inventory.mq.event.InventoryDeductedEvent;
 import com.commerce.platform.inventory.mq.event.InventoryReleasedEvent;
 import com.commerce.platform.inventory.mq.event.InventoryReservedEvent;
 import com.commerce.platform.inventory.service.InventoryReservationService;
+import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,12 +30,8 @@ import java.util.UUID;
 /**
  * 库存预占服务实现
  * <p>
- * 核心业务规则：
- * 1. Reservation 状态机：ACTIVE → RELEASED | DEDUCTED | EXPIRED（禁止逆向流转）
- * 2. 幂等性：reservationNo 唯一，重复请求不重复锁库存
- * 3. 所有操作必须生成 InventoryMovement（Append-Only）
- * 4. Inventory + Reservation + Movement 同事务提交
- * 5. Inventory 不依赖 Order Domain（orderId 仅存 Long）
+ * Sprint 21 Step 2B: Inventory management migrated to InventoryStock Aggregate + InventoryStockRepository.
+ * InventoryReservation (domain/entity) retained for reservationNo-based queries (no direct StockReservation equivalent).
  * </p>
  */
 @Slf4j
@@ -44,7 +40,7 @@ import java.util.UUID;
 @SuppressWarnings("null")
 public class InventoryReservationServiceImpl implements InventoryReservationService {
 
-    private final InventoryRepository inventoryRepository;
+    private final InventoryStockRepository inventoryStockRepository;
     private final InventoryReservationRepository reservationRepository;
     private final InventoryMovementRepository movementRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -52,29 +48,24 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReservationResponse reserve(ReserveInventoryRequest request) {
-        // 1. 查找库存记录
-        Inventory inventory = inventoryRepository.findById(request.getInventoryId())
-                .orElseThrow(() -> new BusinessException("库存记录不存在：" + request.getInventoryId()));
+        InventoryStock stock = findStockById(request.getInventoryId());
 
-        // 2. 校验可用库存
-        if (inventory.getAvailableStock() < request.getQuantity()) {
-            throw new BusinessException("库存不足：当前可售库存 " + inventory.getAvailableStock()
+        if (stock.getAvailableQuantity() < request.getQuantity()) {
+            throw new BusinessException("库存不足：当前可售库存 " + stock.getAvailableQuantity()
                     + "，需求 " + request.getQuantity());
         }
 
-        // 3. 生成唯一预占编号
         String reservationNo = generateReservationNo();
 
-        // 4. 更新库存
-        inventory.setAvailableStock(inventory.getAvailableStock() - request.getQuantity());
-        inventory.setLockedStock(inventory.getLockedStock() + request.getQuantity());
-        inventoryRepository.save(inventory);
+        // Sprint 21 Step 2B: use reserve() instead of setAvailableStock()/setLockedStock()
+        int beforeAvailable = stock.getAvailableQuantity();
+        stock.reserve(request.getQuantity());
+        inventoryStockRepository.save(stock);
 
-        // 5. 创建 Reservation 记录
         LocalDateTime expireTime = LocalDateTime.now().plusMinutes(request.getExpireMinutes());
         InventoryReservation reservation = InventoryReservation.builder()
                 .reservationNo(reservationNo)
-                .inventoryId(inventory.getId())
+                .inventoryId(stock.getId())
                 .productSkuId(request.getProductSkuId())
                 .orderId(request.getOrderId())
                 .quantity(request.getQuantity())
@@ -83,20 +74,15 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
                 .build();
         reservationRepository.save(reservation);
 
-        // 6. 生成库存流水
-        createMovement(inventory, MovementType.RESERVE, request.getQuantity(),
-                inventory.getAvailableStock() + request.getQuantity(), // 变动前
-                inventory.getAvailableStock());                       // 变动后
+        createMovement(stock, MovementType.RESERVE, request.getQuantity(), beforeAvailable, stock.getAvailableQuantity());
 
-        // 7. 发布事件
         eventPublisher.publishEvent(new InventoryReservedEvent(
-                reservationNo, inventory.getId(), request.getProductSkuId(),
+                reservationNo, stock.getId(), request.getProductSkuId(),
                 request.getOrderId(), request.getQuantity()));
 
         log.info("库存锁定成功：reservationNo={}, skuId={}, orderId={}, quantity={}",
                 reservationNo, request.getProductSkuId(), request.getOrderId(), request.getQuantity());
 
-        // 8. 返回响应
         ReservationResponse response = new ReservationResponse();
         response.setReservationNo(reservationNo);
         response.setStatus(ReservationStatus.ACTIVE.name());
@@ -108,42 +94,33 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReservationResponse release(ReleaseReservationRequest request) {
-        // 1. 查找 Reservation
         InventoryReservation reservation = reservationRepository.findByReservationNo(request.getReservationNo())
                 .orElseThrow(() -> new BusinessException("预占记录不存在：" + request.getReservationNo()));
 
-        // 2. 状态机校验：仅 ACTIVE 可释放
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
             throw new BusinessException("预占状态不合法：当前状态 " + reservation.getStatus()
                     + "，仅 ACTIVE 可释放");
         }
 
-        // 3. 校验释放数量
         if (request.getQuantity() > reservation.getQuantity()) {
             throw new BusinessException("释放数量超过预占数量：预占 " + reservation.getQuantity()
                     + "，释放 " + request.getQuantity());
         }
 
-        // 4. 查找并更新库存
-        Inventory inventory = inventoryRepository.findById(reservation.getInventoryId())
-                .orElseThrow(() -> new BusinessException("库存记录不存在：" + reservation.getInventoryId()));
+        InventoryStock stock = findStockById(reservation.getInventoryId());
 
-        int beforeAvailable = inventory.getAvailableStock();
-        inventory.setLockedStock(inventory.getLockedStock() - request.getQuantity());
-        inventory.setAvailableStock(inventory.getAvailableStock() + request.getQuantity());
-        inventoryRepository.save(inventory);
+        int beforeAvailable = stock.getAvailableQuantity();
+        // Sprint 21 Step 2B: use release() instead of setLockedStock()/setAvailableStock()
+        stock.release(request.getQuantity());
+        inventoryStockRepository.save(stock);
 
-        // 5. 更新 Reservation 状态
         reservation.setStatus(ReservationStatus.RELEASED);
         reservationRepository.save(reservation);
 
-        // 6. 生成流水
-        createMovement(inventory, MovementType.RELEASE, request.getQuantity(),
-                beforeAvailable, inventory.getAvailableStock());
+        createMovement(stock, MovementType.RELEASE, request.getQuantity(), beforeAvailable, stock.getAvailableQuantity());
 
-        // 7. 发布事件
         eventPublisher.publishEvent(new InventoryReleasedEvent(
-                request.getReservationNo(), inventory.getId(), reservation.getProductSkuId(),
+                request.getReservationNo(), stock.getId(), reservation.getProductSkuId(),
                 reservation.getOrderId(), request.getQuantity(), "ORDER_CANCELLED"));
 
         log.info("库存释放成功：reservationNo={}, quantity={}", request.getReservationNo(), request.getQuantity());
@@ -159,43 +136,33 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReservationResponse deduct(DeductReservationRequest request) {
-        // 1. 查找 Reservation
         InventoryReservation reservation = reservationRepository.findByReservationNo(request.getReservationNo())
                 .orElseThrow(() -> new BusinessException("预占记录不存在：" + request.getReservationNo()));
 
-        // 2. 状态机校验：仅 ACTIVE 可扣减
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
             throw new BusinessException("预占状态不合法：当前状态 " + reservation.getStatus()
                     + "，仅 ACTIVE 可扣减");
         }
 
-        // 3. 校验扣减数量
         if (request.getQuantity() > reservation.getQuantity()) {
             throw new BusinessException("扣减数量超过预占数量：预占 " + reservation.getQuantity()
                     + "，扣减 " + request.getQuantity());
         }
 
-        // 4. 查找并更新库存（扣减减少 reserved + total）
-        Inventory inventory = inventoryRepository.findById(reservation.getInventoryId())
-                .orElseThrow(() -> new BusinessException("库存记录不存在：" + reservation.getInventoryId()));
+        InventoryStock stock = findStockById(reservation.getInventoryId());
 
-        int beforeReserved = inventory.getLockedStock();
-        inventory.setLockedStock(inventory.getLockedStock() - request.getQuantity());
-        inventory.setSoldStock(inventory.getSoldStock() + request.getQuantity());
-        // availableStock 不变（已在 reserve 时减少）
-        inventoryRepository.save(inventory);
+        int beforeReserved = stock.getReservedQuantity();
+        // Sprint 21 Step 2B: use confirm() instead of setLockedStock()/setSoldStock()
+        stock.confirm(request.getQuantity());
+        inventoryStockRepository.save(stock);
 
-        // 5. 更新 Reservation 状态
         reservation.setStatus(ReservationStatus.DEDUCTED);
         reservationRepository.save(reservation);
 
-        // 6. 生成流水
-        createMovement(inventory, MovementType.DEDUCT, request.getQuantity(),
-                beforeReserved, inventory.getLockedStock());
+        createMovement(stock, MovementType.DEDUCT, request.getQuantity(), beforeReserved, stock.getReservedQuantity());
 
-        // 7. 发布事件
         eventPublisher.publishEvent(new InventoryDeductedEvent(
-                request.getReservationNo(), inventory.getId(), reservation.getProductSkuId(),
+                request.getReservationNo(), stock.getId(), reservation.getProductSkuId(),
                 reservation.getOrderId(), request.getQuantity()));
 
         log.info("库存扣减成功：reservationNo={}, quantity={}", request.getReservationNo(), request.getQuantity());
@@ -247,17 +214,17 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
         });
     }
 
-    // ========== 私有方法 ==========
+    private InventoryStock findStockById(Long inventoryId) {
+        return inventoryStockRepository.findById(inventoryId)
+                .orElseThrow(() -> new BusinessException("库存记录不存在：" + inventoryId));
+    }
 
-    /**
-     * 创建库存流水记录（Append-Only）
-     */
-    private void createMovement(Inventory inventory, MovementType movementType,
+    private void createMovement(InventoryStock stock, MovementType movementType,
                                  int quantity, int beforeValue, int afterValue) {
         InventoryMovement movement = InventoryMovement.builder()
                 .movementNo(generateMovementNo())
-                .productSkuId(inventory.getSkuId())
-                .inventoryId(inventory.getId())
+                .productSkuId(stock.getSkuId())
+                .inventoryId(stock.getId())
                 .movementType(movementType)
                 .quantity(quantity)
                 .beforeAvailable(beforeValue)
@@ -266,19 +233,12 @@ public class InventoryReservationServiceImpl implements InventoryReservationServ
         movementRepository.save(movement);
     }
 
-    /**
-     * 生成预占编号
-     * 格式：RSV + yyyyMMddHHmmss + 6位随机字符
-     */
     private String generateReservationNo() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String random = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
         return "RSV" + timestamp + random;
     }
 
-    /**
-     * 生成流水编号
-     */
     private String generateMovementNo() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String random = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();

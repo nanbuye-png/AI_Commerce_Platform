@@ -1,8 +1,8 @@
 package com.commerce.platform.inventory.event.listener;
 
-import com.commerce.platform.inventory.domain.entity.InventoryReservationEntity;
-import com.commerce.platform.inventory.domain.enums.InvReservationStatus;
-import com.commerce.platform.inventory.domain.repository.InventoryReservationEntityRepository;
+import com.commerce.platform.inventory.reservation.domain.aggregate.StockReservation;
+import com.commerce.platform.inventory.reservation.domain.repository.StockReservationRepository;
+import com.commerce.platform.inventory.reservation.domain.valueobject.ReservationStatus;
 import com.commerce.platform.inventory.service.InventoryApplicationService;
 import com.commerce.platform.order.event.OrderCancelledEvent;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +16,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * <p>
  * 监听 Order Domain 的订单取消事件，释放已锁定的库存。
  * 根据 Reservation 状态进行幂等处理：
- * - LOCKED → 释放库存 + 更新 Reservation 状态
+ * - RESERVED → 释放库存 + 更新 Reservation 状态
  * - RELEASED → 已释放，忽略
- * - DEDUCTED → 不允许释放，记录日志
+ * - CONFIRMED → 不允许释放，记录日志
+ * </p>
+ * <p>
+ * Sprint 20 Step 4C: Reservation 从 InventoryReservationEntity 迁移到 StockReservation。
  * </p>
  */
 @Slf4j
@@ -27,14 +30,14 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class OrderCancelEventListener {
 
     private final InventoryApplicationService inventoryApplicationService;
-    private final InventoryReservationEntityRepository reservationRepository;
+    private final StockReservationRepository stockReservationRepository;
 
     /**
      * 订单取消时释放库存
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onOrderCancelled(OrderCancelledEvent event) {
-        log.info("收到订单取消事件：orderNo={}", event.getOrderNo());
+        log.info("收到订单取消事件：orderId={}, orderNo={}", event.getOrderId(), event.getOrderNo());
 
         if (event.getItems() == null) {
             log.info("订单取消事件无 items 信息，跳过库存释放：orderNo={}", event.getOrderNo());
@@ -42,41 +45,47 @@ public class OrderCancelEventListener {
         }
 
         for (var item : event.getItems()) {
-            // 查询 Reservation
-            var reservationOpt = reservationRepository.findByOrderNoAndSkuId(
-                    event.getOrderNo(), item.getSkuId());
-
-            if (reservationOpt.isEmpty()) {
-                log.warn("未找到预占记录，跳过：orderNo={}, skuId={}",
-                        event.getOrderNo(), item.getSkuId());
+            Long productId = item.getProductId();
+            if (productId == null) {
+                log.warn("OrderCancelledEvent 缺少 productId，跳过：orderId={}, skuId={}",
+                        event.getOrderId(), item.getSkuId());
                 continue;
             }
 
-            InventoryReservationEntity reservation = reservationOpt.get();
+            // 查询 StockReservation
+            var reservationOpt = stockReservationRepository.findByOrderIdAndProductId(
+                    event.getOrderId(), productId);
 
-            switch (reservation.getStatus()) {
-                case LOCKED:
-                    // 释放库存
-                    inventoryApplicationService.releaseInventory(
-                            item.getSkuId(), item.getQuantity(), event.getOrderNo());
-                    // 更新 Reservation 状态
-                    reservation.release();
-                    reservationRepository.save(reservation);
-                    log.info("释放库存成功：orderNo={}, skuId={}", event.getOrderNo(), item.getSkuId());
-                    break;
-
-                case RELEASED:
-                    // 已释放，幂等忽略
-                    log.info("库存已释放，忽略重复取消事件：orderNo={}, skuId={}",
-                            event.getOrderNo(), item.getSkuId());
-                    break;
-
-                case DEDUCTED:
-                    // 已扣减的不允许释放
-                    log.warn("库存已扣减，不允许释放：orderNo={}, skuId={}",
-                            event.getOrderNo(), item.getSkuId());
-                    break;
+            if (reservationOpt.isEmpty()) {
+                log.warn("未找到 StockReservation 预占记录，跳过：orderId={}, productId={}",
+                        event.getOrderId(), productId);
+                continue;
             }
+
+            StockReservation reservation = reservationOpt.get();
+
+            if (reservation.getStatus() == ReservationStatus.RELEASED) {
+                log.info("库存已释放，忽略重复取消事件：orderId={}, productId={}",
+                        event.getOrderId(), productId);
+                continue;
+            }
+
+            if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
+                log.warn("库存已确认，不允许释放：orderId={}, productId={}",
+                        event.getOrderId(), productId);
+                continue;
+            }
+
+            // 释放库存
+            inventoryApplicationService.releaseInventory(
+                    item.getSkuId(), item.getQuantity(), event.getOrderNo());
+
+            // 更新 StockReservation 状态
+            reservation.release();
+            stockReservationRepository.save(reservation);
+
+            log.info("释放库存成功：orderId={}, productId={}, skuId={}",
+                    event.getOrderId(), productId, item.getSkuId());
         }
     }
 }

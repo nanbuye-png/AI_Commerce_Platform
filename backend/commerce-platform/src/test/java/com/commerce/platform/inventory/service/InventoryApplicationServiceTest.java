@@ -1,8 +1,6 @@
 package com.commerce.platform.inventory.service;
 
-import com.commerce.platform.inventory.domain.entity.Inventory;
 import com.commerce.platform.inventory.domain.enums.InventoryStatus;
-import com.commerce.platform.inventory.domain.repository.InventoryRepository;
 import com.commerce.platform.inventory.dto.request.CreateInventoryRequest;
 import com.commerce.platform.inventory.dto.response.InventoryVO;
 import com.commerce.platform.inventory.event.InventoryLockedEvent;
@@ -10,6 +8,9 @@ import com.commerce.platform.inventory.event.InventoryReleasedEvent;
 import com.commerce.platform.inventory.exception.InsufficientInventoryException;
 import com.commerce.platform.inventory.exception.InventoryAlreadyExistsException;
 import com.commerce.platform.inventory.exception.InventoryNotFoundException;
+import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
+import com.commerce.platform.inventory.stock.domain.exception.InsufficientStockException;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ import static org.mockito.Mockito.*;
 class InventoryApplicationServiceTest {
 
     @Mock
-    private InventoryRepository inventoryRepository;
+    private InventoryStockRepository inventoryStockRepository;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -50,22 +51,14 @@ class InventoryApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
-        inventoryApplicationService = new InventoryApplicationService(inventoryRepository, eventPublisher);
+        inventoryApplicationService = new InventoryApplicationService(inventoryStockRepository, eventPublisher);
     }
 
-    private Inventory createInventory(Long id, Long productId, Long skuId,
-                                       int availableStock, int lockedStock, int soldStock,
+    private InventoryStock createStock(Long id, Long productId, Long skuId,
+                                       int availableQuantity, int reservedQuantity, int soldQuantity,
                                        InventoryStatus status) {
-        Inventory inventory = Inventory.builder()
-                .productId(productId)
-                .skuId(skuId)
-                .availableStock(availableStock)
-                .lockedStock(lockedStock)
-                .soldStock(soldStock)
-                .status(status)
-                .build();
-        inventory.setId(id);
-        return inventory;
+        InventoryStock stock = InventoryStock.restore(id, productId, skuId, availableQuantity, reservedQuantity, soldQuantity, status);
+        return stock;
     }
 
     // ============================================
@@ -80,11 +73,10 @@ class InventoryApplicationServiceTest {
         request.setSkuId(1001L);
         request.setInitialStock(100);
 
-        when(inventoryRepository.existsBySkuId(1001L)).thenReturn(false);
+        when(inventoryStockRepository.existsBySkuId(1001L)).thenReturn(false);
 
-        Inventory savedInventory = createInventory(1L, 1L, 1001L, 100, 0, 0, InventoryStatus.AVAILABLE);
-
-        when(inventoryRepository.save(any(Inventory.class))).thenReturn(savedInventory);
+        InventoryStock savedStock = createStock(1L, 1L, 1001L, 100, 0, 0, InventoryStatus.AVAILABLE);
+        when(inventoryStockRepository.save(any(InventoryStock.class))).thenReturn(savedStock);
 
         InventoryVO vo = inventoryApplicationService.createInventory(request);
 
@@ -103,9 +95,9 @@ class InventoryApplicationServiceTest {
     @Test
     @DisplayName("正常锁库存：available=100，锁 10，验证 available=90, locked=10")
     void shouldLockInventorySuccessfully() {
-        Inventory inventory = createInventory(1L, 1L, 1001L, 100, 0, 0, InventoryStatus.AVAILABLE);
+        InventoryStock stock = createStock(1L, 1L, 1001L, 100, 0, 0, InventoryStatus.AVAILABLE);
 
-        when(inventoryRepository.findBySkuId(1001L)).thenReturn(Optional.of(inventory));
+        when(inventoryStockRepository.findBySkuId(1001L)).thenReturn(Optional.of(stock));
 
         InventoryVO vo = inventoryApplicationService.lockInventory(1001L, 10, "ORDER_001");
 
@@ -121,11 +113,11 @@ class InventoryApplicationServiceTest {
     @Test
     @DisplayName("库存不足：available=5，请求 10，抛 InsufficientInventoryException")
     void shouldThrowWhenInsufficientStock() {
-        Inventory inventory = createInventory(1L, 1L, 1001L, 5, 0, 0, InventoryStatus.AVAILABLE);
+        InventoryStock stock = createStock(1L, 1L, 1001L, 5, 0, 0, InventoryStatus.AVAILABLE);
 
-        when(inventoryRepository.findBySkuId(1001L)).thenReturn(Optional.of(inventory));
+        when(inventoryStockRepository.findBySkuId(1001L)).thenReturn(Optional.of(stock));
 
-        assertThrows(InsufficientInventoryException.class,
+        assertThrows(InsufficientStockException.class,
                 () -> inventoryApplicationService.lockInventory(1001L, 10, "ORDER_001"));
     }
 
@@ -136,9 +128,9 @@ class InventoryApplicationServiceTest {
     @Test
     @DisplayName("释放库存：锁 10 后释放 10，验证 available 恢复, locked=0")
     void shouldReleaseInventorySuccessfully() {
-        Inventory inventory = createInventory(1L, 1L, 1001L, 90, 10, 0, InventoryStatus.LOCKED);
+        InventoryStock stock = createStock(1L, 1L, 1001L, 90, 10, 0, InventoryStatus.LOCKED);
 
-        when(inventoryRepository.findBySkuId(1001L)).thenReturn(Optional.of(inventory));
+        when(inventoryStockRepository.findBySkuId(1001L)).thenReturn(Optional.of(stock));
 
         InventoryVO vo = inventoryApplicationService.releaseInventory(1001L, 10, "ORDER_001");
 
@@ -154,9 +146,9 @@ class InventoryApplicationServiceTest {
     @Test
     @DisplayName("lockInventory 发布 InventoryLockedEvent")
     void shouldPublishLockedEvent() {
-        Inventory inventory = createInventory(1L, 1L, 1001L, 100, 0, 0, InventoryStatus.AVAILABLE);
+        InventoryStock stock = createStock(1L, 1L, 1001L, 100, 0, 0, InventoryStatus.AVAILABLE);
 
-        when(inventoryRepository.findBySkuId(1001L)).thenReturn(Optional.of(inventory));
+        when(inventoryStockRepository.findBySkuId(1001L)).thenReturn(Optional.of(stock));
 
         inventoryApplicationService.lockInventory(1001L, 10, "ORDER_001");
 
@@ -172,9 +164,9 @@ class InventoryApplicationServiceTest {
     @Test
     @DisplayName("releaseInventory 发布 InventoryReleasedEvent")
     void shouldPublishReleasedEvent() {
-        Inventory inventory = createInventory(1L, 1L, 1001L, 90, 10, 0, InventoryStatus.LOCKED);
+        InventoryStock stock = createStock(1L, 1L, 1001L, 90, 10, 0, InventoryStatus.LOCKED);
 
-        when(inventoryRepository.findBySkuId(1001L)).thenReturn(Optional.of(inventory));
+        when(inventoryStockRepository.findBySkuId(1001L)).thenReturn(Optional.of(stock));
 
         inventoryApplicationService.releaseInventory(1001L, 10, "ORDER_001");
 
@@ -194,7 +186,7 @@ class InventoryApplicationServiceTest {
     @Test
     @DisplayName("锁定不存在的库存，抛 InventoryNotFoundException")
     void shouldThrowWhenInventoryNotFound() {
-        when(inventoryRepository.findBySkuId(9999L)).thenReturn(Optional.empty());
+        when(inventoryStockRepository.findBySkuId(9999L)).thenReturn(Optional.empty());
 
         assertThrows(InventoryNotFoundException.class,
                 () -> inventoryApplicationService.lockInventory(9999L, 1, "ORDER_001"));
@@ -203,7 +195,7 @@ class InventoryApplicationServiceTest {
     @Test
     @DisplayName("查询不存在的库存，抛 InventoryNotFoundException")
     void shouldThrowWhenGetInventoryNotFound() {
-        when(inventoryRepository.findBySkuId(9999L)).thenReturn(Optional.empty());
+        when(inventoryStockRepository.findBySkuId(9999L)).thenReturn(Optional.empty());
 
         assertThrows(InventoryNotFoundException.class,
                 () -> inventoryApplicationService.getInventory(9999L));
@@ -217,7 +209,7 @@ class InventoryApplicationServiceTest {
         request.setSkuId(1001L);
         request.setInitialStock(100);
 
-        when(inventoryRepository.existsBySkuId(1001L)).thenReturn(true);
+        when(inventoryStockRepository.existsBySkuId(1001L)).thenReturn(true);
 
         assertThrows(InventoryAlreadyExistsException.class,
                 () -> inventoryApplicationService.createInventory(request));

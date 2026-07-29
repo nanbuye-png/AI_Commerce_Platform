@@ -7,10 +7,14 @@ import java.util.List;
 
 /**
  * 订单取消事件
+ * <p>
+ * Sprint 20 Step 3B: 新增 orderId 字段，统一事件契约。
+ * </p>
  */
 @Getter
 public class OrderCancelledEvent {
 
+    private final Long orderId;
     private final String orderNo;
     private final Long buyerId;
     private final Long adminId;
@@ -18,8 +22,9 @@ public class OrderCancelledEvent {
     private final List<OrderCreatedEvent.OrderItemDto> items;
     private final LocalDateTime occurredAt;
 
-    public OrderCancelledEvent(String orderNo, Long buyerId, Long adminId, String cancelReason,
+    public OrderCancelledEvent(Long orderId, String orderNo, Long buyerId, Long adminId, String cancelReason,
                                 List<OrderCreatedEvent.OrderItemDto> items) {
+        this.orderId = orderId;
         this.orderNo = orderNo;
         this.buyerId = buyerId;
         this.adminId = adminId;
@@ -31,7 +36,7 @@ public class OrderCancelledEvent {
     /**
      * 兼容旧调用（无 items）
      */
-    public OrderCancelledEvent(String orderNo, Long buyerId, Long adminId, String cancelReason) {
-        this(orderNo, buyerId, adminId, cancelReason, null);
+    public OrderCancelledEvent(Long orderId, String orderNo, Long buyerId, Long adminId, String cancelReason) {
+        this(orderId, orderNo, buyerId, adminId, cancelReason, null);
     }
 }

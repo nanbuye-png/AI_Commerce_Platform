@@ -1,13 +1,13 @@
 package com.commerce.platform.inventory.integration;
 
-import com.commerce.platform.inventory.domain.entity.Inventory;
-import com.commerce.platform.inventory.domain.entity.InventoryReservationEntity;
-import com.commerce.platform.inventory.domain.enums.InvReservationStatus;
 import com.commerce.platform.inventory.domain.enums.InventoryStatus;
-import com.commerce.platform.inventory.domain.repository.InventoryRepository;
-import com.commerce.platform.inventory.domain.repository.InventoryReservationEntityRepository;
+import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.inventory.event.listener.OrderCancelEventListener;
 import com.commerce.platform.inventory.event.listener.OrderEventListener;
+import com.commerce.platform.inventory.reservation.domain.aggregate.StockReservation;
+import com.commerce.platform.inventory.reservation.domain.repository.StockReservationRepository;
+import com.commerce.platform.inventory.reservation.domain.valueobject.ReservationStatus;
 import com.commerce.platform.inventory.service.InventoryApplicationService;
 import com.commerce.platform.order.event.OrderCancelledEvent;
 import com.commerce.platform.order.event.OrderCreatedEvent;
@@ -30,16 +30,17 @@ import static org.mockito.Mockito.*;
  * Order → Inventory 集成测试
  * <p>
  * 测试订单创建锁库存、取消释放库存、重复事件的幂等处理。
+ * Sprint 20 Step 4C: migrated to StockReservation (new model).
  * </p>
  */
 @ExtendWith(MockitoExtension.class)
 class OrderInventoryIntegrationTest {
 
     @Mock
-    private InventoryRepository inventoryRepository;
+    private InventoryStockRepository inventoryStockRepository;
 
     @Mock
-    private InventoryReservationEntityRepository reservationRepository;
+    private StockReservationRepository stockReservationRepository;
 
     private InventoryApplicationService inventoryApplicationService;
     private OrderEventListener orderEventListener;
@@ -47,22 +48,14 @@ class OrderInventoryIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        inventoryApplicationService = new InventoryApplicationService(inventoryRepository, mock(org.springframework.context.ApplicationEventPublisher.class));
-        orderEventListener = new OrderEventListener(inventoryApplicationService, reservationRepository);
-        orderCancelEventListener = new OrderCancelEventListener(inventoryApplicationService, reservationRepository);
+        inventoryApplicationService = new InventoryApplicationService(inventoryStockRepository, mock(org.springframework.context.ApplicationEventPublisher.class));
+        orderEventListener = new OrderEventListener(inventoryApplicationService, stockReservationRepository);
+        orderCancelEventListener = new OrderCancelEventListener(inventoryApplicationService, stockReservationRepository);
     }
 
-    private Inventory createInventory(int availableStock) {
-        Inventory inventory = Inventory.builder()
-                .productId(1L)
-                .skuId(1001L)
-                .availableStock(availableStock)
-                .lockedStock(0)
-                .soldStock(0)
-                .status(InventoryStatus.AVAILABLE)
-                .build();
-        inventory.setId(1L);
-        return inventory;
+    private InventoryStock createStock(int availableQuantity) {
+        InventoryStock stock = InventoryStock.restore(1L, 1L, 1001L, availableQuantity, 0, 0, InventoryStatus.AVAILABLE);
+        return stock;
     }
 
     // ============================================
@@ -72,19 +65,19 @@ class OrderInventoryIntegrationTest {
     @Test
     @DisplayName("订单创建锁库存：availableStock=100，锁10 → available=90, locked=10")
     void shouldLockInventoryOnOrderCreated() {
-        Inventory inventory = createInventory(100);
+        InventoryStock stock = createStock(100);
 
-        when(inventoryRepository.findBySkuId(1001L)).thenReturn(Optional.of(inventory));
-        when(reservationRepository.existsByOrderNoAndSkuId("ORDER001", 1001L)).thenReturn(false);
+        when(inventoryStockRepository.findBySkuId(1001L)).thenReturn(Optional.of(stock));
+        when(stockReservationRepository.existsByOrderIdAndProductId(1L, 1L)).thenReturn(false);
 
-        OrderCreatedEvent event = new OrderCreatedEvent("ORDER001", 1L,
-                List.of(new OrderItemDto(1001L, 10)));
+        OrderCreatedEvent event = new OrderCreatedEvent(1L, "ORDER001", 1L,
+                List.of(new OrderItemDto(1001L, 1L, 10)));
 
         orderEventListener.onOrderCreated(event);
 
-        assertEquals(90, inventory.getAvailableStock());
-        assertEquals(10, inventory.getLockedStock());
-        verify(reservationRepository).save(any(InventoryReservationEntity.class));
+        assertEquals(90, stock.getAvailableQuantity());
+        assertEquals(10, stock.getReservedQuantity());
+        verify(stockReservationRepository).save(any(StockReservation.class));
     }
 
     // ============================================
@@ -94,31 +87,26 @@ class OrderInventoryIntegrationTest {
     @Test
     @DisplayName("订单取消释放库存：locked=10 → available=100, locked=0, Reservation=RELEASED")
     void shouldReleaseInventoryOnOrderCancelled() {
-        Inventory inventory = createInventory(90);
-        inventory.setLockedStock(10);
-        inventory.setStatus(InventoryStatus.LOCKED);
+        // Restore with pre-reserved state: available=90, reserved=10
+        InventoryStock stock = InventoryStock.restore(1L, 1L, 1001L, 90, 10, 0, InventoryStatus.LOCKED);
+        stock.setId(1L);
 
-        InventoryReservationEntity reservation = InventoryReservationEntity.builder()
-                .orderNo("ORDER001")
-                .skuId(1001L)
-                .quantity(10)
-                .status(InvReservationStatus.LOCKED)
-                .build();
+        StockReservation reservation = StockReservation.create(1L, 1L, 10);
         reservation.setId(1L);
 
-        when(inventoryRepository.findBySkuId(1001L)).thenReturn(Optional.of(inventory));
-        when(reservationRepository.findByOrderNoAndSkuId("ORDER001", 1001L))
+        when(inventoryStockRepository.findBySkuId(1001L)).thenReturn(Optional.of(stock));
+        when(stockReservationRepository.findByOrderIdAndProductId(1L, 1L))
                 .thenReturn(Optional.of(reservation));
 
-        OrderCancelledEvent event = new OrderCancelledEvent("ORDER001", 1L, null, "测试取消",
-                List.of(new OrderItemDto(1001L, 10)));
+        OrderCancelledEvent event = new OrderCancelledEvent(1L, "ORDER001", 1L, null, "测试取消",
+                List.of(new OrderItemDto(1001L, 1L, 10)));
 
         orderCancelEventListener.onOrderCancelled(event);
 
-        assertEquals(100, inventory.getAvailableStock());
-        assertEquals(0, inventory.getLockedStock());
-        assertEquals(InvReservationStatus.RELEASED, reservation.getStatus());
-        verify(reservationRepository).save(reservation);
+        assertEquals(100, stock.getAvailableQuantity());
+        assertEquals(0, stock.getReservedQuantity());
+        assertEquals(ReservationStatus.RELEASED, reservation.getStatus());
+        verify(stockReservationRepository).save(reservation);
     }
 
     // ============================================
@@ -128,21 +116,21 @@ class OrderInventoryIntegrationTest {
     @Test
     @DisplayName("重复 OrderCreatedEvent：第二次不重复锁库存，availableStock 不变")
     void shouldIgnoreDuplicateOrderCreatedEvent() {
-        Inventory inventory = createInventory(90);
-        inventory.setLockedStock(10);
-        inventory.setStatus(InventoryStatus.LOCKED);
+        // Restore with pre-reserved state: available=90, reserved=10
+        InventoryStock stock = InventoryStock.restore(1L, 1L, 1001L, 90, 10, 0, InventoryStatus.LOCKED);
+        stock.setId(1L);
 
-        when(reservationRepository.existsByOrderNoAndSkuId("ORDER001", 1001L)).thenReturn(true);
+        when(stockReservationRepository.existsByOrderIdAndProductId(1L, 1L)).thenReturn(true);
 
-        OrderCreatedEvent event = new OrderCreatedEvent("ORDER001", 1L,
-                List.of(new OrderItemDto(1001L, 10)));
+        OrderCreatedEvent event = new OrderCreatedEvent(1L, "ORDER001", 1L,
+                List.of(new OrderItemDto(1001L, 1L, 10)));
 
         orderEventListener.onOrderCreated(event);
 
         // 未再次锁库存，库存不变
-        assertEquals(90, inventory.getAvailableStock());
-        assertEquals(10, inventory.getLockedStock());
-        verify(reservationRepository, never()).save(any());
+        assertEquals(90, stock.getAvailableQuantity());
+        assertEquals(10, stock.getReservedQuantity());
+        verify(stockReservationRepository, never()).save(any());
     }
 
     // ============================================
@@ -152,28 +140,24 @@ class OrderInventoryIntegrationTest {
     @Test
     @DisplayName("重复取消事件：第二次已 RELEASED，不再释放，库存不变")
     void shouldIgnoreDuplicateCancelEvent() {
-        Inventory inventory = createInventory(100);
+        InventoryStock stock = createStock(100);
 
-        InventoryReservationEntity reservation = InventoryReservationEntity.builder()
-                .orderNo("ORDER001")
-                .skuId(1001L)
-                .quantity(10)
-                .status(InvReservationStatus.RELEASED)
-                .build();
+        StockReservation reservation = StockReservation.create(1L, 1L, 10);
         reservation.setId(1L);
+        reservation.release();
 
-        when(reservationRepository.findByOrderNoAndSkuId("ORDER001", 1001L))
+        when(stockReservationRepository.findByOrderIdAndProductId(1L, 1L))
                 .thenReturn(Optional.of(reservation));
 
-        OrderCancelledEvent event = new OrderCancelledEvent("ORDER001", 1L, null, "重复取消",
-                List.of(new OrderItemDto(1001L, 10)));
+        OrderCancelledEvent event = new OrderCancelledEvent(1L, "ORDER001", 1L, null, "重复取消",
+                List.of(new OrderItemDto(1001L, 1L, 10)));
 
         orderCancelEventListener.onOrderCancelled(event);
 
         // 库存不变（不再释放）
-        assertEquals(100, inventory.getAvailableStock());
-        assertEquals(0, inventory.getLockedStock());
-        assertEquals(InvReservationStatus.RELEASED, reservation.getStatus());
-        verify(reservationRepository, never()).save(any());
+        assertEquals(100, stock.getAvailableQuantity());
+        assertEquals(0, stock.getReservedQuantity());
+        assertEquals(ReservationStatus.RELEASED, reservation.getStatus());
+        verify(stockReservationRepository, never()).save(any());
     }
 }

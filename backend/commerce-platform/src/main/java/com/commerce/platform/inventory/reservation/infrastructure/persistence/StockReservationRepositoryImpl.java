@@ -32,6 +32,16 @@ public class StockReservationRepositoryImpl implements StockReservationRepositor
         return jpaRepository.findById(id).map(this::toDomain);
     }
 
+    @Override
+    public Optional<StockReservation> findByOrderIdAndProductId(Long orderId, Long productId) {
+        return jpaRepository.findByOrderIdAndProductId(orderId, productId).map(this::toDomain);
+    }
+
+    @Override
+    public boolean existsByOrderIdAndProductId(Long orderId, Long productId) {
+        return jpaRepository.existsByOrderIdAndProductId(orderId, productId);
+    }
+
     /**
      * Domain Aggregate → JPA Entity
      */
