@@ -6,33 +6,17 @@ AI 驱动的智能电商平台 —— 融合传统电商与 AI 智能服务。
 
 ```
 AI_Commerce_Platform/
-├── backend/                 # 后端服务（Spring Boot）
-│   └── commerce-platform/   # 核心电商业务
-│       ├── product/         # 商品域（Sprint 9）
-│       ├── inventory/       # 库存域（Sprint 10）
-│       └── order/           # 订单域（Sprint 11）
-├── frontend/               # 前端应用（React + Vite）
-│   ├── customer-web/       # C 端用户前台
-│   ├── merchant-web/       # 商户管理后台
-│   ├── admin-web/          # 平台运营管理后台
-│   └── shared/             # 共享工具库
-├── ai-service/             # AI 智能服务（FastAPI / Python）
-├── infrastructure/         # 基础设施配置（Docker/K8s）
-└── ...
+├── backend/
+│   └── commerce-platform/       # Spring Boot 后端服务
+├── frontend/
+│   ├── customer-web/            # C 端用户前台 (React)
+│   ├── merchant-web/            # 商家管理后台 (React)
+│   └── admin-web/               # 平台管理后台 (React)
+├── ai-service/                  # AI 智能服务 (Python/FastAPI)
+├── infrastructure/              # Docker/K8s 基础设施配置
+├── scripts/                     # 工具脚本
+└── reports/                     # 开发过程报告
 ```
-
-## 已完成 Sprint
-
-| Sprint | 内容 | 状态 |
-|--------|------|------|
-| 9 | Product Domain — 商品 SPU/SKU/规格/图片/分类/审核 | ✅ 完成 |
-| 10 | Inventory Domain — 库存三字段模型/预占/流水审计 | ✅ 完成 |
-| 10.5 | Domain Integration Review — Product + Inventory 统一验收 | ✅ 完成 |
-| 11 | Order Domain — 订单创建/查询/商家发货/状态管理 | ✅ 完成 |
-
-## 快速开始
-
-详见 [docs/dev-guide.md](docs/dev-guide.md)
 
 ## 技术栈
 
@@ -42,3 +26,58 @@ AI_Commerce_Platform/
 | 后端 | Spring Boot 3 + JDK 21 + PostgreSQL |
 | AI 服务 | FastAPI + Python 3.10+ |
 | 基础设施 | Docker + Kubernetes |
+
+## 项目启动步骤
+
+### 前置环境
+
+- JDK 21
+- Node.js 18+
+- Maven 3.8+
+- PostgreSQL（数据库名 `ai_commerce`，用户名/密码见 `application.yml`）
+
+确保 `application.yml` 中的数据库连接配置正确。
+
+### 1. 创建数据库
+
+```sql
+CREATE DATABASE ai_commerce;
+```
+
+### 2. 启动后端
+
+```bash
+cd backend/commerce-platform
+mvn spring-boot:run
+```
+
+- 端口：`8080`
+- 首次启动自动建表（`ddl-auto: create`）
+
+### 3. 启动前端
+
+```bash
+# C 端用户前台
+cd frontend/customer-web
+npm install && npm run dev
+
+# 商家管理后台
+cd frontend/merchant-web
+npm install && npm run dev
+
+# 平台管理后台
+cd frontend/admin-web
+npm install && npm run dev
+```
+
+### 4. 注册账户
+
+- **用户注册**: `POST /api/auth/register`
+- **用户登录**: `POST /api/auth/login`
+
+## 未来扩展计划
+
+- 内置种子数据初始化（Admin / Merchant / Customer 预设账户）
+- AI 商品推荐引擎接入
+- 分布式部署支持（Kubernetes）
+- CI/CD 流水线
