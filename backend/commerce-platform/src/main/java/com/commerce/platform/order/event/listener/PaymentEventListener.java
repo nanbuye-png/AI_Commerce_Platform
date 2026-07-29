@@ -49,7 +49,7 @@ public class PaymentEventListener {
                 event.getPaymentId(), event.getOrderId(), event.getTransactionNo());
 
         try {
-            Order order = orderRepository.findByOrderNo(String.valueOf(event.getOrderId()))
+            Order order = orderRepository.findById(event.getOrderId())
                     .orElseThrow(() -> new OrderNotFoundException(String.valueOf(event.getOrderId())));
 
             // 幂等处理：如果订单已支付，忽略重复事件

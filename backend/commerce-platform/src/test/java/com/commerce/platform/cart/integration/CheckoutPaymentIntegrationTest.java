@@ -101,9 +101,8 @@ class CheckoutPaymentIntegrationTest {
                 .build();
         order.setId(1L);
 
-        // PaymentEventListener now calls findByOrderNo(String.valueOf(event.getOrderId()))
-        // event.getOrderId() = 1L, so the call is findByOrderNo("1")
-        when(orderRepository.findByOrderNo("1")).thenReturn(Optional.of(order));
+        // PaymentEventListener calls findById(event.getOrderId())
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
         when(checkoutTransactionRepository.save(any(CheckoutTransaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -190,8 +189,8 @@ class CheckoutPaymentIntegrationTest {
                 .build();
         order.setId(orderId);
 
-        // PaymentEventListener calls findByOrderNo("1")
-        when(orderRepository.findByOrderNo(String.valueOf(orderId))).thenReturn(Optional.of(order));
+        // PaymentEventListener calls findById(orderId)
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
         // 第一次支付成功事件
         PaymentSuccessEvent event = new PaymentSuccessEvent(
