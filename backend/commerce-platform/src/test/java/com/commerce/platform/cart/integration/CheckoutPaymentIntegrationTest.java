@@ -9,29 +9,13 @@ import com.commerce.platform.cart.domain.repository.CartRepository;
 import com.commerce.platform.cart.domain.repository.CheckoutTransactionRepository;
 import com.commerce.platform.cart.event.listener.OrderCreateFailedEventListener;
 import com.commerce.platform.cart.event.listener.OrderPaidSuccessListener;
-import com.commerce.platform.cart.service.CheckoutApplicationService;
-import com.commerce.platform.inventory.domain.entity.Inventory;
-import com.commerce.platform.inventory.domain.entity.InventoryReservationEntity;
-import com.commerce.platform.inventory.domain.enums.InvReservationStatus;
-import com.commerce.platform.inventory.domain.enums.InventoryStatus;
-import com.commerce.platform.inventory.domain.repository.InventoryRepository;
-import com.commerce.platform.inventory.domain.repository.InventoryReservationEntityRepository;
-import com.commerce.platform.inventory.event.listener.OrderPaidEventListener;
-import com.commerce.platform.inventory.service.InventoryDeductApplicationService;
 import com.commerce.platform.order.domain.entity.Order;
 import com.commerce.platform.order.domain.enums.OrderStatus;
 import com.commerce.platform.order.domain.repository.OrderRepository;
 import com.commerce.platform.order.event.OrderPaidEvent;
-import com.commerce.platform.order.event.listener.CartCheckoutEventListener;
 import com.commerce.platform.order.event.listener.PaymentEventListener;
 import com.commerce.platform.order.service.OrderCreationApplicationService;
-import com.commerce.platform.payment.domain.entity.Payment;
-import com.commerce.platform.payment.domain.enums.PaymentMethod;
-import com.commerce.platform.payment.domain.enums.PaymentStatus;
-import com.commerce.platform.payment.domain.repository.PaymentRepository;
-import com.commerce.platform.payment.event.PaymentSuccessEvent;
-import com.commerce.platform.payment.event.listener.OrderCreatedPaymentListener;
-import com.commerce.platform.payment.provider.PaymentNoGenerator;
+import com.commerce.platform.payment.domain.event.PaymentSuccessEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,7 +25,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -71,34 +54,16 @@ class CheckoutPaymentIntegrationTest {
     private OrderRepository orderRepository;
 
     @Mock
-    private PaymentRepository paymentRepository;
-
-    @Mock
-    private PaymentNoGenerator paymentNoGenerator;
-
-    @Mock
-    private InventoryRepository inventoryRepository;
-
-    @Mock
-    private InventoryReservationEntityRepository reservationRepository;
-
-    @Mock
-    private InventoryDeductApplicationService deductApplicationService;
-
-    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     private PaymentEventListener paymentEventListener;
     private OrderPaidSuccessListener orderPaidSuccessListener;
-    private OrderPaidEventListener orderPaidEventListener;
     private OrderCreateFailedEventListener orderCreateFailedEventListener;
 
     @BeforeEach
     void setUp() {
         paymentEventListener = new PaymentEventListener(orderRepository, eventPublisher);
         orderPaidSuccessListener = new OrderPaidSuccessListener(checkoutTransactionRepository);
-        orderPaidEventListener = new OrderPaidEventListener(
-                deductApplicationService, reservationRepository, eventPublisher);
         orderCreateFailedEventListener = new OrderCreateFailedEventListener(
                 checkoutTransactionRepository, cartRepository);
     }
@@ -136,14 +101,16 @@ class CheckoutPaymentIntegrationTest {
                 .build();
         order.setId(1L);
 
-        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(order));
+        // PaymentEventListener now calls findByOrderNo(String.valueOf(event.getOrderId()))
+        // event.getOrderId() = 1L, so the call is findByOrderNo("1")
+        when(orderRepository.findByOrderNo("1")).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
         when(checkoutTransactionRepository.save(any(CheckoutTransaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         // 3. 模拟支付成功 → Order 侧监听
         PaymentSuccessEvent paymentEvent = new PaymentSuccessEvent(
-                "PAY20250101000000", orderNo, "TXN001", new BigDecimal("299.97"));
+                1L, 1L, "TXN001", new BigDecimal("299.97"));
         paymentEventListener.handlePaymentSuccess(paymentEvent);
 
         // 验证 Order 状态变为 PAID
@@ -212,22 +179,23 @@ class CheckoutPaymentIntegrationTest {
     @Test
     @DisplayName("重复 PaymentSuccessEvent：Order 不重复支付，Inventory 不重复扣减")
     void shouldHandleDuplicatePaymentSuccessEvent() {
-        String orderNo = "ORD20250101000000TEST03";
+        Long orderId = 1L;
 
         // Order 已为 PAID
         Order order = Order.builder()
-                .orderNo(orderNo)
+                .orderNo("ORD20250101000000TEST03")
                 .merchantId(1L)
                 .storeId(1L)
                 .orderStatus(OrderStatus.PAID)
                 .build();
-        order.setId(1L);
+        order.setId(orderId);
 
-        when(orderRepository.findByOrderNo(orderNo)).thenReturn(Optional.of(order));
+        // PaymentEventListener calls findByOrderNo("1")
+        when(orderRepository.findByOrderNo(String.valueOf(orderId))).thenReturn(Optional.of(order));
 
         // 第一次支付成功事件
         PaymentSuccessEvent event = new PaymentSuccessEvent(
-                "PAY001", orderNo, "TXN001", new BigDecimal("100.00"));
+                1L, orderId, "TXN001", new BigDecimal("100.00"));
         paymentEventListener.handlePaymentSuccess(event);
 
         assertEquals(OrderStatus.PAID, order.getOrderStatus());

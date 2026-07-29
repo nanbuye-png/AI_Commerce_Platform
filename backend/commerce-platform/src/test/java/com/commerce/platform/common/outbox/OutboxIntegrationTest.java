@@ -3,7 +3,7 @@ package com.commerce.platform.common.outbox;
 import com.commerce.platform.common.event.ProcessedEvent;
 import com.commerce.platform.common.event.ProcessedEventRepository;
 import com.commerce.platform.order.event.OrderPaidEvent;
-import com.commerce.platform.payment.event.PaymentSuccessEvent;
+import com.commerce.platform.payment.domain.event.PaymentSuccessEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -60,7 +60,7 @@ class OutboxIntegrationTest {
     @DisplayName("Payment SUCCESS：支付状态正确，outbox_event 为 NEW")
     void shouldSaveOutboxEventOnPaymentSuccess() {
         PaymentSuccessEvent event = new PaymentSuccessEvent(
-                "PAY001", "ORD001", "TXN001", new BigDecimal("100.00"));
+                1L, 1L, "TXN001", new BigDecimal("100.00"));
 
         when(outboxRepository.save(any(OutboxEvent.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -83,7 +83,7 @@ class OutboxIntegrationTest {
     @DisplayName("Outbox Processor：NEW → PROCESSING → SUCCESS")
     void shouldProcessOutboxEventSuccessfully() throws Exception {
         PaymentSuccessEvent originalEvent = new PaymentSuccessEvent(
-                "PAY001", "ORD001", "TXN001", new BigDecimal("100.00"));
+                1L, 1L, "TXN001", new BigDecimal("100.00"));
         String payload = objectMapper.writeValueAsString(originalEvent);
 
         OutboxEvent outboxEvent = OutboxEvent.builder()
@@ -161,7 +161,7 @@ class OutboxIntegrationTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         // 模拟保存多个事件的调用
-        outboxService.saveEvent(new PaymentSuccessEvent("PAY001", "ORD001", "TXN001", new BigDecimal("100.00")));
+        outboxService.saveEvent(new PaymentSuccessEvent(1L, 1L, "TXN001", new BigDecimal("100.00")));
         outboxService.saveEvent(new OrderPaidEvent(1L, "ORD001", "PAY001"));
 
         verify(outboxRepository, times(2)).save(any(OutboxEvent.class));

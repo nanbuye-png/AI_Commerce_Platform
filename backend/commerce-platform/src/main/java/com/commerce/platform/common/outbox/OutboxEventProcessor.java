@@ -6,7 +6,7 @@ import com.commerce.platform.inventory.event.InventoryLockedEvent;
 import com.commerce.platform.order.event.OrderCreatedEvent;
 import com.commerce.platform.order.event.OrderPaidEvent;
 import com.commerce.platform.payment.event.OrderCreatedForPaymentEvent;
-import com.commerce.platform.payment.event.PaymentSuccessEvent;
+import com.commerce.platform.payment.domain.event.PaymentSuccessEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +44,7 @@ public class OutboxEventProcessor {
         EVENT_TYPE_MAP.put("com.commerce.platform.cart.event.CartCheckedOutEvent", CartCheckedOutEvent.class);
         EVENT_TYPE_MAP.put("com.commerce.platform.order.event.OrderCreatedEvent", OrderCreatedEvent.class);
         EVENT_TYPE_MAP.put("com.commerce.platform.order.event.OrderPaidEvent", OrderPaidEvent.class);
-        EVENT_TYPE_MAP.put("com.commerce.platform.payment.event.PaymentSuccessEvent", PaymentSuccessEvent.class);
+        EVENT_TYPE_MAP.put("com.commerce.platform.payment.domain.event.PaymentSuccessEvent", PaymentSuccessEvent.class);
         EVENT_TYPE_MAP.put("com.commerce.platform.payment.event.OrderCreatedForPaymentEvent", OrderCreatedForPaymentEvent.class);
         EVENT_TYPE_MAP.put("com.commerce.platform.inventory.event.InventoryLockedEvent", InventoryLockedEvent.class);
         EVENT_TYPE_MAP.put("com.commerce.platform.inventory.event.InventoryDeductedEvent", InventoryDeductedEvent.class);

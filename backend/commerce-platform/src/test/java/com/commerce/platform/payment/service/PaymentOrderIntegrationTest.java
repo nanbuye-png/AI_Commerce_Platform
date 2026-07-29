@@ -3,7 +3,7 @@ package com.commerce.platform.payment.service;
 import com.commerce.platform.order.domain.entity.Order;
 import com.commerce.platform.order.domain.enums.OrderStatus;
 import com.commerce.platform.order.domain.repository.OrderRepository;
-import com.commerce.platform.payment.event.PaymentSuccessEvent;
+import com.commerce.platform.payment.domain.event.PaymentSuccessEvent;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,7 +54,7 @@ class PaymentOrderIntegrationTest {
                 .build());
 
         eventPublisher.publishEvent(new PaymentSuccessEvent(
-                "PAY_TEST_001", order.getOrderNo(), "MOCK_TXN_001", BigDecimal.valueOf(100)));
+                1L, order.getId(), "MOCK_TXN_001", BigDecimal.valueOf(100)));
 
         entityManager.clear();
         Optional<Order> found = orderRepository.findByOrderNo(order.getOrderNo());
@@ -76,7 +76,7 @@ class PaymentOrderIntegrationTest {
                 .build());
 
         assertDoesNotThrow(() -> eventPublisher.publishEvent(new PaymentSuccessEvent(
-                "PAY_TEST_002", order.getOrderNo(), "MOCK_TXN_002", BigDecimal.valueOf(100))),
+                1L, order.getId(), "MOCK_TXN_002", BigDecimal.valueOf(100))),
                 "重复支付事件不应抛出异常");
 
         entityManager.clear();
@@ -99,7 +99,7 @@ class PaymentOrderIntegrationTest {
                 .build());
 
         eventPublisher.publishEvent(new PaymentSuccessEvent(
-                "PAY_FULL_" + System.currentTimeMillis(), order.getOrderNo(),
+                1L, order.getId(),
                 "MOCK_TXN_FULL", BigDecimal.valueOf(200)));
 
         entityManager.clear();

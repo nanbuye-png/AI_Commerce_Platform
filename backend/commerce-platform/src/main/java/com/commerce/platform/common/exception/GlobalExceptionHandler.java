@@ -4,7 +4,7 @@ import com.commerce.platform.common.entity.Result;
 import com.commerce.platform.order.exception.AdminPermissionException;
 import com.commerce.platform.order.exception.InvalidOrderStatusException;
 import com.commerce.platform.order.exception.OrderNotFoundException;
-import com.commerce.platform.payment.exception.InvalidPaymentStatusException;
+import com.commerce.platform.payment.domain.exception.InvalidPaymentStatusException;
 import com.commerce.platform.payment.exception.PaymentAlreadyProcessedException;
 import com.commerce.platform.payment.exception.PaymentAmountMismatchException;
 import com.commerce.platform.payment.exception.PaymentNotFoundException;

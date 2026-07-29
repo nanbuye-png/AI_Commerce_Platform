@@ -1,7 +1,7 @@
 package com.commerce.platform.inventory.event.listener;
 
 import com.commerce.platform.inventory.service.InventoryDeductApplicationService;
-import com.commerce.platform.payment.event.PaymentSuccessEvent;
+import com.commerce.platform.payment.domain.event.PaymentSuccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,8 +31,8 @@ public class PaymentSuccessEventListener {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPaymentSuccess(PaymentSuccessEvent event) {
-        log.info("收到支付成功事件：paymentNo={}, orderNo={}", event.getPaymentNo(), event.getOrderNo());
+        log.info("收到支付成功事件：paymentId={}, orderId={}", event.getPaymentId(), event.getOrderId());
         // 预留：后续通过 Order 提供的商品明细逐 SKU 扣库存
-        log.info("支付成功待扣库存：orderNo={}", event.getOrderNo());
+        log.info("支付成功待扣库存：orderId={}", event.getOrderId());
     }
 }

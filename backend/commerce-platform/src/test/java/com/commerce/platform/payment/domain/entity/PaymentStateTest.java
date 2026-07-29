@@ -1,112 +1,99 @@
 package com.commerce.platform.payment.domain.entity;
 
-import com.commerce.platform.payment.domain.enums.PaymentMethod;
-import com.commerce.platform.payment.domain.enums.PaymentStatus;
-import com.commerce.platform.payment.exception.InvalidPaymentStatusException;
+import com.commerce.platform.payment.domain.aggregate.Payment;
+import com.commerce.platform.payment.domain.exception.InvalidPaymentStatusException;
+import com.commerce.platform.payment.domain.valueobject.PaymentStatus;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Payment Entity 状态转换覆盖测试
- * <p>
- * 覆盖所有合法路径和非法路径。
- * </p>
- */
+@DisplayName("Payment 状态流转测试")
 class PaymentStateTest {
 
-    private Payment createPayment(PaymentStatus status) {
-        return Payment.builder()
-                .paymentNo("PAY_TEST_001")
-                .orderNo("ORDER_TEST_001")
-                .userId(1L)
-                .amount(BigDecimal.valueOf(100))
-                .paymentMethod(PaymentMethod.MOCK)
-                .paymentStatus(status)
-                .build();
+    private Payment payment;
+
+    @BeforeEach
+    void setUp() {
+        payment = Payment.create(1L, 100L, new BigDecimal("99.99"), "PAY20250101001");
     }
 
-    // ======== 合法路径 ========
-
-    @Test
-    @DisplayName("合法路径：CREATED → PENDING → SUCCESS → REFUNDED")
-    void shouldFollowValidFullPath() {
-        Payment payment = createPayment(PaymentStatus.CREATED);
-
-        payment.startPay();
-        assertEquals(PaymentStatus.PENDING, payment.getPaymentStatus());
-
-        payment.success("TXN_001");
-        assertEquals(PaymentStatus.SUCCESS, payment.getPaymentStatus());
-        assertEquals("TXN_001", payment.getTransactionNo());
-        assertNotNull(payment.getPaidTime());
-
-        payment.refund();
-        assertEquals(PaymentStatus.REFUNDED, payment.getPaymentStatus());
+    @Test @DisplayName("创建支付应初始化为 CREATED")
+    void shouldBeCreatedWhenCreated() {
+        assertEquals(PaymentStatus.CREATED, payment.getStatus());
+        assertEquals(1L, payment.getOrderId());
+        assertEquals(100L, payment.getUserId());
+        assertEquals(new BigDecimal("99.99"), payment.getAmount());
     }
 
-    @Test
-    @DisplayName("合法路径：CREATED → PENDING → FAILED")
-    void shouldAllowPendingToFailed() {
-        Payment payment = createPayment(PaymentStatus.PENDING);
+    @Test @DisplayName("CREATED → PROCESSING")
+    void shouldTransitionToProcessing() {
+        payment.startProcessing();
+        assertEquals(PaymentStatus.PROCESSING, payment.getStatus());
+    }
 
+    @Test @DisplayName("PROCESSING → PAID")
+    void shouldTransitionToPaid() {
+        payment.startProcessing();
+        payment.markPaid("TXN001");
+        assertEquals(PaymentStatus.PAID, payment.getStatus());
+        assertEquals("TXN001", payment.getTransactionNo());
+        assertNotNull(payment.getPaidAt());
+    }
+
+    @Test @DisplayName("PROCESSING → FAILED")
+    void shouldTransitionToFailed() {
+        payment.startProcessing();
         payment.fail();
-        assertEquals(PaymentStatus.FAILED, payment.getPaymentStatus());
+        assertEquals(PaymentStatus.FAILED, payment.getStatus());
+        assertNotNull(payment.getFailedAt());
     }
 
-    @Test
-    @DisplayName("合法路径：CREATED → PENDING → CLOSED")
-    void shouldAllowPendingToClosed() {
-        Payment payment = createPayment(PaymentStatus.PENDING);
-
-        payment.close();
-        assertEquals(PaymentStatus.CLOSED, payment.getPaymentStatus());
+    @Test @DisplayName("CREATED → CANCELLED")
+    void shouldAllowCancelFromCreated() {
+        payment.cancel();
+        assertEquals(PaymentStatus.CANCELLED, payment.getStatus());
     }
 
-    // ======== 非法路径 ========
-
-    @Test
-    @DisplayName("非法路径：CREATED.refund() 应抛出异常")
-    void shouldNotAllowCreatedToRefund() {
-        Payment payment = createPayment(PaymentStatus.CREATED);
-        assertThrows(InvalidPaymentStatusException.class, payment::refund);
+    @Test @DisplayName("PAID 不可继续流转")
+    void shouldNotTransitionFromPaid() {
+        payment.startProcessing();
+        payment.markPaid("TXN001");
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.startProcessing());
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.fail());
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.cancel());
     }
 
-    @Test
-    @DisplayName("非法路径：SUCCESS.success() 应抛出异常")
-    void shouldNotAllowSuccessToSuccess() {
-        Payment payment = createPayment(PaymentStatus.SUCCESS);
-        assertThrows(InvalidPaymentStatusException.class, () -> payment.success("TXN_002"));
+    @Test @DisplayName("FAILED 不可继续流转")
+    void shouldNotTransitionFromFailed() {
+        payment.startProcessing();
+        payment.fail();
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.markPaid("TXN002"));
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.cancel());
     }
 
-    @Test
-    @DisplayName("非法路径：FAILED.success() 应抛出异常")
-    void shouldNotAllowFailedToSuccess() {
-        Payment payment = createPayment(PaymentStatus.FAILED);
-        assertThrows(InvalidPaymentStatusException.class, () -> payment.success("TXN_003"));
+    @Test @DisplayName("CANCELLED 不可继续流转")
+    void shouldNotTransitionFromCancelled() {
+        payment.cancel();
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.startProcessing());
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.fail());
     }
 
-    @Test
-    @DisplayName("非法路径：SUCCESS.fail() 应抛出异常")
-    void shouldNotAllowSuccessToFail() {
-        Payment payment = createPayment(PaymentStatus.SUCCESS);
-        assertThrows(InvalidPaymentStatusException.class, payment::fail);
+    @Test @DisplayName("CREATED → PAID 直接跳转非法")
+    void shouldThrowExceptionForCreatedToPaid() {
+        assertThrows(InvalidPaymentStatusException.class, () -> payment.markPaid("TXN003"));
     }
 
-    @Test
-    @DisplayName("非法路径：CLOSED.startPay() 应抛出异常")
-    void shouldNotAllowClosedToStartPay() {
-        Payment payment = createPayment(PaymentStatus.CLOSED);
-        assertThrows(InvalidPaymentStatusException.class, payment::startPay);
-    }
-
-    @Test
-    @DisplayName("非法路径：REFUNDED.startPay() 应抛出异常")
-    void shouldNotAllowRefundedToStartPay() {
-        Payment payment = createPayment(PaymentStatus.REFUNDED);
-        assertThrows(InvalidPaymentStatusException.class, payment::startPay);
+    @Test @DisplayName("restore 应正确恢复")
+    void shouldRestoreAllFields() {
+        payment.startProcessing();
+        payment.markPaid("TXN004");
+        Payment restored = Payment.restore(1L, 1L, 100L, new BigDecimal("99.99"),
+                PaymentStatus.PAID, "PAY001", "TXN004",
+                payment.getCreatedAt(), payment.getPaidAt(), null);
+        assertEquals(PaymentStatus.PAID, restored.getStatus());
+        assertEquals("TXN004", restored.getTransactionNo());
     }
 }

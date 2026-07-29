@@ -5,7 +5,7 @@ import com.commerce.platform.order.domain.enums.OrderStatus;
 import com.commerce.platform.order.domain.repository.OrderRepository;
 import com.commerce.platform.order.event.OrderPaidEvent;
 import com.commerce.platform.order.exception.OrderNotFoundException;
-import com.commerce.platform.payment.event.PaymentSuccessEvent;
+import com.commerce.platform.payment.domain.event.PaymentSuccessEvent;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,17 +45,17 @@ public class PaymentEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handlePaymentSuccess(PaymentSuccessEvent event) {
         long startTime = System.currentTimeMillis();
-        log.info("收到支付成功事件 - paymentNo={}, orderNo={}, transactionNo={}",
-                event.getPaymentNo(), event.getOrderNo(), event.getTransactionNo());
+        log.info("收到支付成功事件 - paymentId={}, orderId={}, transactionNo={}",
+                event.getPaymentId(), event.getOrderId(), event.getTransactionNo());
 
         try {
-            Order order = orderRepository.findByOrderNo(event.getOrderNo())
-                    .orElseThrow(() -> new OrderNotFoundException(event.getOrderNo()));
+            Order order = orderRepository.findByOrderNo(String.valueOf(event.getOrderId()))
+                    .orElseThrow(() -> new OrderNotFoundException(String.valueOf(event.getOrderId())));
 
             // 幂等处理：如果订单已支付，忽略重复事件
             if (order.getOrderStatus() == OrderStatus.PAID) {
-                log.warn("订单已支付，忽略重复事件 - orderNo={}, paymentNo={}",
-                        event.getOrderNo(), event.getPaymentNo());
+                log.warn("订单已支付，忽略重复事件 - orderId={}, paymentId={}",
+                        event.getOrderId(), event.getPaymentId());
                 return;
             }
 
@@ -65,15 +65,15 @@ public class PaymentEventListener {
 
             // 发布 OrderPaidEvent
             eventPublisher.publishEvent(new OrderPaidEvent(
-                    order.getId(), order.getOrderNo(), event.getPaymentNo()));
+                    order.getId(), order.getOrderNo(), String.valueOf(event.getPaymentId())));
 
             long elapsed = System.currentTimeMillis() - startTime;
-            log.info("订单支付成功 - orderNo={}, paymentNo={}, 耗时={}ms",
-                    event.getOrderNo(), event.getPaymentNo(), elapsed);
+            log.info("订单支付成功 - orderId={}, paymentId={}, 耗时={}ms",
+                    event.getOrderId(), event.getPaymentId(), elapsed);
 
         } catch (OrderNotFoundException e) {
-            log.error("订单不存在，支付成功事件无法处理 - orderNo={}, paymentNo={}",
-                    event.getOrderNo(), event.getPaymentNo(), e);
+            log.error("订单不存在，支付成功事件无法处理 - orderId={}, paymentId={}",
+                    event.getOrderId(), event.getPaymentId(), e);
             throw e;
         }
     }
