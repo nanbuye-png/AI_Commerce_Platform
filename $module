@@ -1,0 +1,5 @@
+CROSS: common - : OutboxEventProcessor.java
+CROSS: order - : CartCheckoutEventListener.java
+CROSS: order - : ShipmentDeliveredEventListener.java
+CROSS: returns - : ReturnCompletedForRefundEventListener.java
+CROSS: warehouse - : FulfillmentCreatedEventListener.java
