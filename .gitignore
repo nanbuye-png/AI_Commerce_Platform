@@ -44,3 +44,10 @@ backend/commerce-platform/dependency-reduced-pom.xml
 # Docs - design documents only tracked locally
 docs/
 reports/
+
+# Local autonomous work checkpoints
+.harness-active
+harness-progress.txt
+harness-tasks.json
+harness-tasks.json.bak
+harness-tasks.json.tmp
