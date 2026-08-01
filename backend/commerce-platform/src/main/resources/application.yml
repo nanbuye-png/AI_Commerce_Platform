@@ -5,25 +5,30 @@ spring:
   application:
     name: ai-commerce-platform
   datasource:
-    url: jdbc:postgresql://localhost:5432/ai_commerce
-    username: postgres
-    password: 123456
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ai_commerce_platform}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: create
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
   flyway:
-    enabled: false
+    enabled: true
+    validate-migration-naming: true
 
 # JWT
 jwt:
-  secret: ai-commerce-platform-secret-key-change-in-production
-  expiration: 86400000
-  customer-web-secret: customer-web-jwt-secret-change-in-production
-  merchant-web-secret: merchant-web-jwt-secret-change-in-production
-  admin-web-secret: admin-web-jwt-secret-change-in-production
+  secret: ${JWT_SECRET:}
+  expiration: ${JWT_EXPIRATION:86400000}
+  customer-web-secret: ${JWT_CUSTOMER_WEB_SECRET:}
+  merchant-web-secret: ${JWT_MERCHANT_WEB_SECRET:}
+  admin-web-secret: ${JWT_ADMIN_WEB_SECRET:}
+
+app:
+  security:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175}

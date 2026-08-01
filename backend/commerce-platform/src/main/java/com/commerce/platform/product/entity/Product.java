@@ -15,7 +15,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "product", indexes = {
-    @Index(name = "idx_merchant_id", columnList = "merchant_id"),
+    @Index(name = "idx_product_merchant_id", columnList = "merchant_id"),
     @Index(name = "idx_store_id", columnList = "store_id"),
     @Index(name = "idx_category_id", columnList = "category_id"),
     @Index(name = "idx_merchant_status", columnList = "merchant_id, status"),

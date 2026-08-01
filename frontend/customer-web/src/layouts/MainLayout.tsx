@@ -22,7 +22,7 @@ const MainLayout: React.FC = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login', { replace: true });
+    void navigate('/login', { replace: true });
   };
 
   return (
@@ -147,7 +147,7 @@ const MainLayout: React.FC = () => {
           {navItems.map((item) => (
             <button
               key={item.path}
-              onClick={() => { navigate(item.path); setMobileMenuOpen(false); }}
+              onClick={() => { void navigate(item.path); setMobileMenuOpen(false); }}
               style={{
                 display: 'block',
                 width: '100%',

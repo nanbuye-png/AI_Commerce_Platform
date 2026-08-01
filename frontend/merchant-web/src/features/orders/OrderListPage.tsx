@@ -16,6 +16,8 @@ const statusLabels: Record<string, string> = {
   cancelled: '已取消',
 };
 
+const orderMockAmounts = [248, 596, 128, 899, 430];
+
 const OrderListPage: React.FC = () => {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -37,7 +39,7 @@ const OrderListPage: React.FC = () => {
                 <tr key={i} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-primary)' }}>ORD-{2026000 + i}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-primary)' }}>商品名称 {i} x 2</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: 'var(--color-accent)' }}>¥{Math.round(Math.random() * 1000)}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: 'var(--color-accent)' }}>¥{orderMockAmounts[i - 1]}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', background: `${statusColors[status]}18`, color: statusColors[status] }}>
                       {statusLabels[status]}

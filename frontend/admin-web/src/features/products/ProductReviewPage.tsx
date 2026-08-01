@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { productApi } from '../../api/products';
-
-interface ProductVO {
-  id: number;
-  productName: string;
-  merchantId: number;
-  status: string;
-  createdTime: string;
-}
+import type { ProductVO } from '../../api/products';
 
 const statusLabels: Record<string, string> = {
   PENDING_REVIEW: '待审核',
@@ -25,29 +18,35 @@ const statusColors: Record<string, string> = {
 
 const ProductReviewPage: React.FC = () => {
   const [products, setProducts] = useState<ProductVO[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadProducts = async () => {
-    setLoading(true);
-    try {
-      const res = await productApi.listPending({ page: 0, pageSize: 20 });
-      const data = res?.data || res;
-      setProducts(data?.content || data?.data?.content || []);
-    } catch (err) {
-      console.error('加载商品列表失败:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadProducts();
+    let cancelled = false;
+    void productApi.listPending({ page: 1, size: 20 })
+      .then((res) => {
+        if (!cancelled) setProducts(res.data.list);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载商品列表失败:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const loadProducts = async () => {
+    const res = await productApi.listPending({ page: 1, size: 20 });
+    setProducts(res.data.list);
+  };
 
   const handleApprove = async (id: number) => {
     try {
       await productApi.approve(id);
-      loadProducts();
+      await loadProducts();
     } catch (err) {
       console.error('审核失败:', err);
       alert('操作失败');
@@ -57,7 +56,7 @@ const ProductReviewPage: React.FC = () => {
   const handleReject = async (id: number) => {
     try {
       await productApi.reject(id);
-      loadProducts();
+      await loadProducts();
     } catch (err) {
       console.error('驳回失败:', err);
       alert('操作失败');
@@ -67,7 +66,7 @@ const ProductReviewPage: React.FC = () => {
   const handleOffShelf = async (id: number) => {
     try {
       await productApi.offShelf(id);
-      loadProducts();
+      await loadProducts();
     } catch (err) {
       console.error('下架失败:', err);
       alert('操作失败');

@@ -30,7 +30,7 @@ public class CustomerOrderController {
      * </p>
      */
     @PostMapping
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public Result<CreateOrderResponse> createOrder(Authentication authentication,
                                                     @Valid @RequestBody CreateOrderRequest request) {
         Long customerId = getCustomerId(authentication);

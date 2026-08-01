@@ -1,5 +1,19 @@
 import request from './request';
 
+export interface Result<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export interface UserVO {
   id: number;
   username: string;
@@ -12,21 +26,11 @@ export interface UserVO {
   createdTime: string;
 }
 
-export interface PageResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  number: number;
-  size: number;
-}
-
 export const userApi = {
-  list: (params?: { page?: number; pageSize?: number; role?: string; status?: string; keyword?: string }) =>
-    request.get<any>('/admin/users', { params }),
-
-  getDetail: (id: number) =>
-    request.get<any>(`/admin/users/${id}`),
-
+  list: (params?: { page?: number; pageSize?: number; role?: string; status?: string; keyword?: string }): Promise<Result<PageResponse<UserVO>>> =>
+    request.get<Result<PageResponse<UserVO>>, Result<PageResponse<UserVO>>>('/admin/users', { params }),
+  getDetail: (id: number): Promise<Result<UserVO>> =>
+    request.get<Result<UserVO>, Result<UserVO>>(`/admin/users/${id}`),
   updateStatus: (id: number, status: string) =>
-    request.put<any>(`/admin/users/${id}/status`, { status }),
+    request.put<Result<UserVO>, Result<UserVO>>(`/admin/users/${id}/status`, { status }),
 };

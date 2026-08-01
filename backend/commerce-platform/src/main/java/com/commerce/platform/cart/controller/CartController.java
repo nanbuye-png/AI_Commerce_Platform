@@ -25,14 +25,14 @@ public class CartController {
     private final CheckoutApplicationService checkoutApplicationService;
 
     @GetMapping
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public Result<CartVO> getCart(Authentication authentication) {
         Long userId = getUserId(authentication);
         return Result.success(cartApplicationService.getCart(userId));
     }
 
     @PostMapping("/items")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public Result<CartVO> addItem(Authentication authentication,
                                    @Valid @RequestBody AddCartItemRequest request) {
         Long userId = getUserId(authentication);
@@ -40,7 +40,7 @@ public class CartController {
     }
 
     @PutMapping("/items")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public Result<CartVO> updateQuantity(Authentication authentication,
                                           @Valid @RequestBody UpdateCartItemRequest request) {
         Long userId = getUserId(authentication);
@@ -48,7 +48,7 @@ public class CartController {
     }
 
     @DeleteMapping("/items")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public Result<CartVO> removeItem(Authentication authentication,
                                       @Valid @RequestBody RemoveCartItemRequest request) {
         Long userId = getUserId(authentication);
@@ -56,7 +56,7 @@ public class CartController {
     }
 
     @PostMapping("/checkout")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public Result<String> checkout(Authentication authentication,
                                     @Valid @RequestBody CheckoutRequest request) {
         Long userId = getUserId(authentication);

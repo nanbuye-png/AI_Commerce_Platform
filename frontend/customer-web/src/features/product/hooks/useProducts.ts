@@ -46,6 +46,8 @@ export function useProducts(initialFilters?: ProductFilters): UseProductsReturn 
     setLoading(true);
     setError(null);
     try {
+      const request = { filters, page, pageSize };
+      void request;
       // TODO: Implement actual API call
       // const result = await productApi.getProducts({ ...filters, page, pageSize });
       // setProducts(result.items);
@@ -63,7 +65,7 @@ export function useProducts(initialFilters?: ProductFilters): UseProductsReturn 
   }, [filters, page, pageSize]);
 
   const refresh = useCallback(() => {
-    fetchProducts();
+    void fetchProducts();
   }, [fetchProducts]);
 
   return {

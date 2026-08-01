@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment", indexes = {
-    @Index(name = "idx_order_id", columnList = "order_id"),
+    @Index(name = "idx_payment_order_id", columnList = "order_id"),
     @Index(name = "idx_payment_no", columnList = "payment_no", unique = true)
 })
 @Getter

@@ -5,6 +5,7 @@ import io.jsonwebtoken.JwtException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.List;
 
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 验证 Token 生成、解析、验证、多端 ClientType 能力
  */
 @SpringBootTest
+@ActiveProfiles("test")
 class JwtUtilTest {
 
     @Autowired
@@ -72,12 +74,33 @@ class JwtUtilTest {
 
     @Test
     void shouldExtractUserIdAndRoles() {
-        List<String> roles = List.of("ROLE_CUSTOMER", "ROLE_MERCHANT");
+        List<String> roles = List.of("ROLE_CUSTOMER");
         String token = jwtUtil.generateToken(5L, "multi", roles, JwtUtil.ClientType.CUSTOMER_WEB);
 
         assertEquals(5L, jwtUtil.getUserIdFromToken(token));
         assertEquals("multi", jwtUtil.getUsernameFromToken(token));
         assertEquals(roles, jwtUtil.getRolesFromToken(token));
         assertEquals("CUSTOMER_WEB", jwtUtil.getClientTypeFromToken(token));
+    }
+
+    @Test
+    void shouldRejectPrivilegeEscalationAtTokenIssuance() {
+        assertThrows(JwtException.class, () -> jwtUtil.generateToken(
+                6L,
+                "attacker",
+                List.of("ROLE_ADMIN"),
+                JwtUtil.ClientType.CUSTOMER_WEB));
+    }
+
+    @Test
+    void shouldRejectTokenWhenVerifiedByAnotherClientKey() {
+        String token = jwtUtil.generateToken(
+                7L,
+                "merchant",
+                List.of("ROLE_MERCHANT"),
+                JwtUtil.ClientType.MERCHANT_WEB);
+
+        assertThrows(JwtException.class,
+                () -> jwtUtil.parseToken(token, JwtUtil.ClientType.ADMIN_WEB));
     }
 }

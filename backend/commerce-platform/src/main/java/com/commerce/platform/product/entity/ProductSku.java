@@ -12,7 +12,7 @@ import org.hibernate.annotations.SQLRestriction;
  */
 @Entity
 @Table(name = "product_sku", indexes = {
-    @Index(name = "idx_product_id", columnList = "product_id"),
+    @Index(name = "idx_product_sku_product_id", columnList = "product_id"),
     @Index(name = "uk_sku_code", columnList = "sku_code", unique = true),
     @Index(name = "idx_sku_status", columnList = "product_id, status")
 })

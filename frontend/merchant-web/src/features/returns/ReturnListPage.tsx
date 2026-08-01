@@ -35,26 +35,31 @@ const reasonLabels: Record<string, string> = {
 const ReturnListPage: React.FC = () => {
   const navigate = useNavigate();
   const [returns, setReturns] = useState<ReturnRequestVO[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
 
-  const loadReturns = async () => {
-    setLoading(true);
-    try {
-      const params: { page?: number; pageSize?: number; status?: string } = { page: 0, pageSize: 50 };
-      if (statusFilter) params.status = statusFilter;
-      const res = await returnApi.list(params);
-      const data = (res as any).data;
-      setReturns(data?.content || []);
-    } catch (err) {
-      console.error('加载退货列表失败:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadReturns();
+    let cancelled = false;
+    const params: { page?: number; pageSize?: number; status?: string } = { page: 0, pageSize: 50 };
+    if (statusFilter) params.status = statusFilter;
+
+    void returnApi.list(params)
+      .then((res) => {
+        if (!cancelled) {
+          setReturns(res.data?.content || []);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error('加载退货列表失败:', err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [statusFilter]);
 
   return (
@@ -63,7 +68,10 @@ const ReturnListPage: React.FC = () => {
         <h1 style={{ fontSize: 'var(--font-size-h1)', fontWeight: 600, margin: 0 }}>退货管理</h1>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setLoading(true);
+            setStatusFilter(e.target.value);
+          }}
           style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '14px' }}
         >
           <option value="">全部状态</option>

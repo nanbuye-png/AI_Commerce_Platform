@@ -59,6 +59,12 @@ public class OutboxEvent {
     @Column(name = "processed_time")
     private LocalDateTime processedTime;
 
+    @Column(name = "last_error", length = 2000)
+    private String lastError;
+
+    @Column(name = "processing_token", length = 64)
+    private String processingToken;
+
     @PrePersist
     protected void onCreate() {
         this.createdTime = LocalDateTime.now();
@@ -69,19 +75,38 @@ public class OutboxEvent {
     // 禁止外部直接修改 status
     // ============================================
 
-    public void markProcessing() {
+    public void markProcessing(String processingToken) {
         this.status = OutboxStatus.PROCESSING;
+        this.processingToken = processingToken;
+        this.processedTime = LocalDateTime.now();
     }
 
     public void markSuccess() {
         this.status = OutboxStatus.SUCCESS;
         this.processedTime = LocalDateTime.now();
+        this.lastError = null;
+        this.processingToken = null;
     }
 
     public void markFailed(String errorMsg) {
         this.status = OutboxStatus.FAILED;
         this.retryCount = (this.retryCount == null ? 0 : this.retryCount) + 1;
         this.processedTime = LocalDateTime.now();
+        this.lastError = truncateError(errorMsg);
+        this.processingToken = null;
+    }
+
+    public boolean isClaimedBy(String processingToken) {
+        return this.status == OutboxStatus.PROCESSING
+                && this.processingToken != null
+                && this.processingToken.equals(processingToken);
+    }
+
+    private String truncateError(String errorMsg) {
+        if (errorMsg == null) {
+            return "Unknown processing error";
+        }
+        return errorMsg.length() <= 2000 ? errorMsg : errorMsg.substring(0, 2000);
     }
 
     /**

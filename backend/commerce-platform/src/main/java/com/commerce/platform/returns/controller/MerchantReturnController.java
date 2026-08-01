@@ -6,6 +6,7 @@ import com.commerce.platform.returns.domain.repository.ReturnRepository;
 import com.commerce.platform.returns.domain.valueobject.ReturnStatus;
 import com.commerce.platform.returns.infrastructure.persistence.ReturnRequestEntity;
 import com.commerce.platform.returns.infrastructure.persistence.ReturnRequestJpaRepository;
+import com.commerce.platform.order.domain.entity.Order;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,11 @@ public class MerchantReturnController {
 
         Specification<ReturnRequestEntity> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            var orderSubquery = query.subquery(Long.class);
+            var orderRoot = orderSubquery.from(Order.class);
+            orderSubquery.select(orderRoot.get("id"))
+                    .where(cb.equal(orderRoot.get("merchantId"), merchantId));
+            predicates.add(root.get("orderId").in(orderSubquery));
             if (status != null && !status.isEmpty()) {
                 try {
                     ReturnStatus returnStatus = ReturnStatus.valueOf(status.toUpperCase());
@@ -73,10 +79,10 @@ public class MerchantReturnController {
      * 退货详情
      */
     @GetMapping("/{id}")
-    public Result<ReturnRequest> getReturnDetail(@PathVariable Long id) {
-        log.info("Merchant 退货详情 - id={}", id);
-        ReturnRequest returnRequest = returnRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("退货不存在: " + id));
+    public Result<ReturnRequest> getReturnDetail(@PathVariable Long id, Authentication authentication) {
+        Long merchantId = getMerchantId(authentication);
+        log.info("Merchant 退货详情 - id={}, merchantId={}", id, merchantId);
+        ReturnRequest returnRequest = findOwnedReturn(id, merchantId);
         return Result.success(returnRequest);
     }
 
@@ -89,8 +95,7 @@ public class MerchantReturnController {
         Long merchantId = getMerchantId(authentication);
         log.info("Merchant 批准退货 - id={}, merchantId={}", id, merchantId);
 
-        ReturnRequest returnRequest = returnRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("退货不存在: " + id));
+        ReturnRequest returnRequest = findOwnedReturn(id, merchantId);
 
         if (returnRequest.getStatus() != ReturnStatus.REQUESTED) {
             return Result.error("当前退货状态不允许批准: " + returnRequest.getStatus());
@@ -111,8 +116,7 @@ public class MerchantReturnController {
         Long merchantId = getMerchantId(authentication);
         log.info("Merchant 拒绝退货 - id={}, merchantId={}", id, merchantId);
 
-        ReturnRequest returnRequest = returnRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("退货不存在: " + id));
+        ReturnRequest returnRequest = findOwnedReturn(id, merchantId);
 
         if (returnRequest.getStatus() != ReturnStatus.REQUESTED) {
             return Result.error("当前退货状态不允许拒绝: " + returnRequest.getStatus());
@@ -136,6 +140,20 @@ public class MerchantReturnController {
                 entity.getApprovedAt(),
                 entity.getCompletedAt()
         );
+    }
+
+    private ReturnRequest findOwnedReturn(Long id, Long merchantId) {
+        ReturnRequestEntity entity = returnJpaRepository.findOne((root, query, cb) -> {
+                    var orderSubquery = query.subquery(Long.class);
+                    var orderRoot = orderSubquery.from(Order.class);
+                    orderSubquery.select(orderRoot.get("id"))
+                            .where(
+                                    cb.equal(orderRoot.get("id"), root.get("orderId")),
+                                    cb.equal(orderRoot.get("merchantId"), merchantId));
+                    return cb.and(cb.equal(root.get("id"), id), cb.exists(orderSubquery));
+                })
+                .orElseThrow(() -> new RuntimeException("退货不存在: " + id));
+        return toDomain(entity);
     }
 
     private Long getMerchantId(Authentication authentication) {

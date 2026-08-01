@@ -36,21 +36,39 @@ const RefundDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    void refundApi.getDetail(Number(id))
+      .then((res) => {
+        if (!cancelled) {
+          setRefund(res.data);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error('加载退款详情失败:', err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   const loadRefund = async () => {
     setLoading(true);
     try {
       const res = await refundApi.getDetail(Number(id));
-      setRefund((res as any).data);
-    } catch (err) {
+      setRefund(res.data);
+    } catch (err: unknown) {
       console.error('加载退款详情失败:', err);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadRefund();
-  }, [id]);
 
   const handleApprove = async () => {
     if (!refund) return;
@@ -58,7 +76,7 @@ const RefundDetailPage: React.FC = () => {
     try {
       await refundApi.approve(refund.id);
       alert('退款已批准');
-      loadRefund();
+      await loadRefund();
     } catch (err) {
       console.error('批准失败:', err);
       alert('操作失败');
@@ -73,7 +91,7 @@ const RefundDetailPage: React.FC = () => {
     try {
       await refundApi.reject(refund.id);
       alert('退款已拒绝');
-      loadRefund();
+      await loadRefund();
     } catch (err) {
       console.error('拒绝失败:', err);
       alert('操作失败');

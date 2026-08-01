@@ -20,7 +20,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate(`/products/${product.id}`);
+    void navigate(`/products/${product.id}`);
   };
 
   // Compact variant (用于推荐区域/关联商品)

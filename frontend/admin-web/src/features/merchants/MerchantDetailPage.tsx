@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { merchantApi } from '../../api/merchants';
-
-interface MerchantVO {
-  id: number;
-  username: string;
-  email: string;
-  nickname: string | null;
-  phone: string | null;
-  role: string;
-  status: string;
-  createdTime: string;
-}
+import type { MerchantVO } from '../../api/merchants';
 
 const statusLabels: Record<string, string> = { ACTIVE: '正常', INACTIVE: '停用', LOCKED: '锁定' };
 const statusColors: Record<string, string> = { ACTIVE: '#34C759', INACTIVE: '#A1A1A6', LOCKED: '#FF3B30' };
@@ -26,8 +16,7 @@ const MerchantDetailPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await merchantApi.getDetail(Number(id));
-      const data = res?.data || res;
-      setMerchant(data);
+      setMerchant(res.data);
     } catch (err) {
       console.error('加载商家详情失败:', err);
     } finally {
@@ -35,12 +24,28 @@ const MerchantDetailPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadMerchant(); }, [id]);
+  useEffect(() => {
+    let cancelled = false;
+    void merchantApi.getDetail(Number(id))
+      .then((res) => {
+        if (!cancelled) setMerchant(res.data);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载商家详情失败:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const handleStatusChange = async (newStatus: string) => {
     try {
       await merchantApi.updateStatus(Number(id), newStatus);
-      loadMerchant();
+      await loadMerchant();
     } catch (err) {
       console.error('更新状态失败:', err);
       alert('操作失败');

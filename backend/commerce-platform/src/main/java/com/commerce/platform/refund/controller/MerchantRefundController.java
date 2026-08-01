@@ -6,6 +6,7 @@ import com.commerce.platform.refund.domain.repository.RefundRepository;
 import com.commerce.platform.refund.domain.valueobject.RefundStatus;
 import com.commerce.platform.refund.infrastructure.persistence.RefundEntity;
 import com.commerce.platform.refund.infrastructure.persistence.RefundJpaRepository;
+import com.commerce.platform.order.domain.entity.Order;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,11 @@ public class MerchantRefundController {
         // 按 merchant_id 过滤（通过 order_id 关联，暂时简化查询所有退款）
         Specification<RefundEntity> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            var orderSubquery = query.subquery(Long.class);
+            var orderRoot = orderSubquery.from(Order.class);
+            orderSubquery.select(orderRoot.get("id"))
+                    .where(cb.equal(orderRoot.get("merchantId"), merchantId));
+            predicates.add(root.get("orderId").in(orderSubquery));
             if (status != null && !status.isEmpty()) {
                 try {
                     RefundStatus refundStatus = RefundStatus.valueOf(status.toUpperCase());
@@ -74,10 +80,10 @@ public class MerchantRefundController {
      * 退款详情
      */
     @GetMapping("/{id}")
-    public Result<Refund> getRefundDetail(@PathVariable Long id) {
-        log.info("Merchant 退款详情 - id={}", id);
-        Refund refund = refundRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("退款不存在: " + id));
+    public Result<Refund> getRefundDetail(@PathVariable Long id, Authentication authentication) {
+        Long merchantId = getMerchantId(authentication);
+        log.info("Merchant 退款详情 - id={}, merchantId={}", id, merchantId);
+        Refund refund = findOwnedRefund(id, merchantId);
         return Result.success(refund);
     }
 
@@ -90,8 +96,7 @@ public class MerchantRefundController {
         Long merchantId = getMerchantId(authentication);
         log.info("Merchant 批准退款 - id={}, merchantId={}", id, merchantId);
 
-        Refund refund = refundRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("退款不存在: " + id));
+        Refund refund = findOwnedRefund(id, merchantId);
 
         if (refund.getStatus() != RefundStatus.REQUESTED) {
             return Result.error("当前退款状态不允许批准: " + refund.getStatus());
@@ -112,8 +117,7 @@ public class MerchantRefundController {
         Long merchantId = getMerchantId(authentication);
         log.info("Merchant 拒绝退款 - id={}, merchantId={}", id, merchantId);
 
-        Refund refund = refundRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("退款不存在: " + id));
+        Refund refund = findOwnedRefund(id, merchantId);
 
         if (refund.getStatus() != RefundStatus.REQUESTED) {
             return Result.error("当前退款状态不允许拒绝: " + refund.getStatus());
@@ -136,6 +140,20 @@ public class MerchantRefundController {
                 entity.getCreatedAt(),
                 entity.getCompletedAt()
         );
+    }
+
+    private Refund findOwnedRefund(Long id, Long merchantId) {
+        RefundEntity entity = refundJpaRepository.findOne((root, query, cb) -> {
+                    var orderSubquery = query.subquery(Long.class);
+                    var orderRoot = orderSubquery.from(Order.class);
+                    orderSubquery.select(orderRoot.get("id"))
+                            .where(
+                                    cb.equal(orderRoot.get("id"), root.get("orderId")),
+                                    cb.equal(orderRoot.get("merchantId"), merchantId));
+                    return cb.and(cb.equal(root.get("id"), id), cb.exists(orderSubquery));
+                })
+                .orElseThrow(() -> new RuntimeException("退款不存在: " + id));
+        return toDomain(entity);
     }
 
     private Long getMerchantId(Authentication authentication) {

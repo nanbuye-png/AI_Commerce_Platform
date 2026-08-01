@@ -15,7 +15,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placehol
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    initializeSession();
+    void initializeSession();
   }, [initializeSession]);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placehol
   const handleSend = (text: string) => {
     const msg = text.trim();
     if (!msg || loading) return;
-    sendMessage(msg);
+    void sendMessage(msg);
     setInput('');
   };
 

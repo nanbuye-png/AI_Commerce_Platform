@@ -39,21 +39,39 @@ const ReturnDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    void returnApi.getDetail(Number(id))
+      .then((res) => {
+        if (!cancelled) {
+          setReturnRequest(res.data);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error('加载退货详情失败:', err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
   const loadReturn = async () => {
     setLoading(true);
     try {
       const res = await returnApi.getDetail(Number(id));
-      setReturnRequest((res as any).data);
-    } catch (err) {
+      setReturnRequest(res.data);
+    } catch (err: unknown) {
       console.error('加载退货详情失败:', err);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadReturn();
-  }, [id]);
 
   const handleApprove = async () => {
     if (!returnRequest) return;
@@ -61,7 +79,7 @@ const ReturnDetailPage: React.FC = () => {
     try {
       await returnApi.approve(returnRequest.id);
       alert('退货已批准');
-      loadReturn();
+      await loadReturn();
     } catch (err) {
       console.error('批准失败:', err);
       alert('操作失败');
@@ -76,7 +94,7 @@ const ReturnDetailPage: React.FC = () => {
     try {
       await returnApi.reject(returnRequest.id);
       alert('退货已拒绝');
-      loadReturn();
+      await loadReturn();
     } catch (err) {
       console.error('拒绝失败:', err);
       alert('操作失败');

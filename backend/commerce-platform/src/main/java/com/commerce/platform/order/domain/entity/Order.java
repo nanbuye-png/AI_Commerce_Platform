@@ -24,10 +24,10 @@ import java.util.List;
  */
 @Entity
 @Table(name = "orders", indexes = {
-    @Index(name = "idx_buyer_id", columnList = "buyer_id"),
-    @Index(name = "idx_merchant_id", columnList = "merchant_id"),
+    @Index(name = "idx_orders_buyer_id", columnList = "buyer_id"),
+    @Index(name = "idx_orders_merchant_id", columnList = "merchant_id"),
     @Index(name = "idx_order_status", columnList = "order_status"),
-    @Index(name = "idx_created_time", columnList = "created_time"),
+    @Index(name = "idx_orders_created_time", columnList = "created_time"),
     @Index(name = "idx_buyer_status_created", columnList = "buyer_id, order_status, created_time"),
     @Index(name = "idx_merchant_status_created", columnList = "merchant_id, order_status, created_time")
 })

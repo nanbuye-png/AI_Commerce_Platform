@@ -1,5 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+const productMockData = [
+  { price: 129, stock: 86 },
+  { price: 258, stock: 142 },
+  { price: 399, stock: 57 },
+  { price: 699, stock: 24 },
+  { price: 899, stock: 118 },
+];
 
 const ProductListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,8 +42,8 @@ const ProductListPage: React.FC = () => {
                     <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>SKU-{1000 + i}</p>
                   </div>
                 </td>
-                <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: 'var(--color-accent)' }}>¥{Math.round(Math.random() * 1000)}</td>
-                <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-primary)' }}>{Math.floor(Math.random() * 200)}</td>
+                <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: 'var(--color-accent)' }}>¥{productMockData[i - 1].price}</td>
+                <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-primary)' }}>{productMockData[i - 1].stock}</td>
                 <td style={{ padding: '12px 16px' }}>
                   <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', background: 'var(--color-success)18', color: 'var(--color-success)' }}>上架</span>
                 </td>

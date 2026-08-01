@@ -32,7 +32,7 @@ const Login: React.FC = () => {
           role: res.data.role,
           status: 'ACTIVE',
         });
-        navigate('/dashboard', { replace: true });
+        void navigate('/dashboard', { replace: true });
       } else {
         setError(res.message || '登录失败');
       }

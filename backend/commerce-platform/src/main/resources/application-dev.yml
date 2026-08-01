@@ -1,0 +1,15 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ai_commerce_platform}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+
+jwt:
+  # 仅用于本地开发。非 dev 环境必须显式提供独立密钥。
+  secret: ${JWT_SECRET:dev-only-ai-commerce-jwt-secret-change-before-deploying}
+  customer-web-secret: ${JWT_CUSTOMER_WEB_SECRET:dev-only-customer-web-secret-change-before-deploying}
+  merchant-web-secret: ${JWT_MERCHANT_WEB_SECRET:dev-only-merchant-web-secret-change-before-deploying}
+  admin-web-secret: ${JWT_ADMIN_WEB_SECRET:dev-only-admin-web-secret-change-before-deploying}

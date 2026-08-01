@@ -23,32 +23,40 @@ const statusColors: Record<string, string> = {
 
 const UserListPage: React.FC = () => {
   const [users, setUsers] = useState<UserVO[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('');
 
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const params: any = { page: 0, pageSize: 20 };
-      if (roleFilter) params.role = roleFilter;
-      const res = await userApi.list(params);
-      const data = res?.data || res;
-      setUsers(data?.content || []);
-    } catch (err) {
-      console.error('加载用户列表失败:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadUsers();
+    let cancelled = false;
+    const params: { page: number; pageSize: number; role?: string } = { page: 0, pageSize: 20 };
+    if (roleFilter) params.role = roleFilter;
+    void userApi.list(params)
+      .then((res) => {
+        if (!cancelled) setUsers(res.data.content);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载用户列表失败:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [roleFilter]);
+
+  const loadUsers = async () => {
+    const params: { page: number; pageSize: number; role?: string } = { page: 0, pageSize: 20 };
+    if (roleFilter) params.role = roleFilter;
+    const res = await userApi.list(params);
+    setUsers(res.data.content);
+  };
 
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
       await userApi.updateStatus(id, newStatus);
-      loadUsers();
+      await loadUsers();
     } catch (err) {
       console.error('更新状态失败:', err);
       alert('操作失败');
@@ -61,7 +69,10 @@ const UserListPage: React.FC = () => {
         <h1 style={{ fontSize: 'var(--font-size-h1)', fontWeight: 600, margin: 0 }}>用户管理</h1>
         <select
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
+          onChange={(e) => {
+            setLoading(true);
+            setRoleFilter(e.target.value);
+          }}
           style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '14px' }}
         >
           <option value="">全部角色</option>

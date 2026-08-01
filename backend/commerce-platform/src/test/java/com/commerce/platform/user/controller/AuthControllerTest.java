@@ -16,9 +16,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class AuthControllerTest {
 
     @Autowired
@@ -126,6 +129,31 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.token").isNotEmpty())
                 .andExpect(jsonPath("$.data.username").value(TEST_USERNAME));
+    }
+
+    @Test
+    @DisplayName("客户账号登录商家端 - 应拒绝签发跨端 Token")
+    void shouldRejectCustomerLoginForMerchantClient() throws Exception {
+        registerTestUser();
+
+        LoginRequest request = new LoginRequest();
+        request.setAccount(TEST_USERNAME);
+        request.setPassword(TEST_PASSWORD);
+        request.setClientType("MERCHANT_WEB");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("商品浏览接口 - 未登录用户可访问")
+    void shouldAllowAnonymousProductBrowsing() throws Exception {
+        mockMvc.perform(get("/api/products"))
+                .andExpect(status().isOk());
     }
 
     @Test

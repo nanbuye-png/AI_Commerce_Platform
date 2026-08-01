@@ -45,7 +45,7 @@ export interface ProductCreateRequest {
   }[];
 }
 
-export interface ProductUpdateRequest extends ProductCreateRequest {}
+export type ProductUpdateRequest = ProductCreateRequest;
 
 export interface PageResponse<T> {
   content: T[];

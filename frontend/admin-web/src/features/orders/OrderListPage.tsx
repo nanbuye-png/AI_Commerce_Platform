@@ -1,16 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { orderApi } from '../../api/orders';
-
-interface OrderVO {
-  id: number;
-  orderNo: string;
-  buyerId: number;
-  merchantId: number;
-  totalAmount: number;
-  payAmount: number;
-  orderStatus: string;
-  createdTime: string;
-}
+import type { OrderVO } from '../../api/orders';
 
 const statusLabels: Record<string, string> = {
   PENDING_PAYMENT: '待付款',
@@ -36,23 +26,24 @@ const statusColors: Record<string, string> = {
 
 const OrderListPage: React.FC = () => {
   const [orders, setOrders] = useState<OrderVO[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await orderApi.list({ page: 0, pageSize: 20 });
-      const data = res?.data || res;
-      setOrders(data?.content || []);
-    } catch (err) {
-      console.error('加载订单列表失败:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadOrders();
+    let cancelled = false;
+    void orderApi.list({ page: 1, pageSize: 20 })
+      .then((res) => {
+        if (!cancelled) setOrders(res.data.content);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载订单列表失败:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -79,7 +70,7 @@ const OrderListPage: React.FC = () => {
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-primary)', fontFamily: 'monospace' }}>{o.orderNo}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>#{o.buyerId}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>#{o.merchantId}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: 'var(--color-accent)' }}>¥{o.payAmount?.toFixed(2) || o.totalAmount?.toFixed(2)}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: 600, color: 'var(--color-accent)' }}>¥{o.payAmount.toFixed(2)}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', background: `${statusColors[o.orderStatus] || '#86868B'}18`, color: statusColors[o.orderStatus] || '#86868B' }}>
                       {statusLabels[o.orderStatus] || o.orderStatus}

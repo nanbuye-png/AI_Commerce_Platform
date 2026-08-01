@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { merchantApi } from '../../api/merchants';
-
-interface MerchantVO {
-  id: number;
-  username: string;
-  email: string;
-  nickname: string | null;
-  status: string;
-  createdTime: string;
-}
+import type { MerchantVO } from '../../api/merchants';
 
 const statusLabels: Record<string, string> = {
   ACTIVE: '正常',
@@ -26,29 +18,35 @@ const statusColors: Record<string, string> = {
 const MerchantListPage: React.FC = () => {
   const navigate = useNavigate();
   const [merchants, setMerchants] = useState<MerchantVO[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadMerchants = async () => {
-    setLoading(true);
-    try {
-      const res = await merchantApi.list({ page: 0, pageSize: 20 });
-      const data = res?.data || res;
-      setMerchants(data?.content || []);
-    } catch (err) {
-      console.error('加载商家列表失败:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadMerchants();
+    let cancelled = false;
+    void merchantApi.list({ page: 0, pageSize: 20 })
+      .then((res) => {
+        if (!cancelled) setMerchants(res.data.content);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载商家列表失败:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const loadMerchants = async () => {
+    const res = await merchantApi.list({ page: 0, pageSize: 20 });
+    setMerchants(res.data.content);
+  };
 
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
       await merchantApi.updateStatus(id, newStatus);
-      loadMerchants();
+      await loadMerchants();
     } catch (err) {
       console.error('更新状态失败:', err);
       alert('操作失败');

@@ -3,8 +3,8 @@
  * 请求拦截器：自动注入 Authorization: Bearer {admin_token}
  * 响应拦截器：统一处理 401/403
  */
-import axios, { AxiosError } from 'axios';
-import type { InternalAxiosRequestConfig } from 'axios';
+import axios from 'axios';
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getToken, removeToken } from '../utils/token';
 
 const request = axios.create({

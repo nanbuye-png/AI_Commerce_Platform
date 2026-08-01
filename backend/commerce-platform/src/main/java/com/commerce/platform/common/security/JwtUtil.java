@@ -8,6 +8,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * JWT 工具类
@@ -25,6 +26,10 @@ public class JwtUtil {
     public enum ClientType {
         CUSTOMER_WEB, MERCHANT_WEB, ADMIN_WEB
     }
+
+    private static final String ROLE_CUSTOMER = "ROLE_CUSTOMER";
+    private static final String ROLE_MERCHANT = "ROLE_MERCHANT";
+    private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private SecretKey getSigningKey(String secret) {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -47,8 +52,8 @@ public class JwtUtil {
      * @return JWT token string
      */
     public String generateToken(Long userId, String username, List<String> roles, ClientType clientType) {
+        validateRolesForClient(clientType, roles);
         String secret = getSecretForClient(clientType);
-        if (secret == null) secret = jwtProperties.getSecret();
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
@@ -66,8 +71,9 @@ public class JwtUtil {
      */
     public Claims parseToken(String token, ClientType clientType) {
         String secret = getSecretForClient(clientType);
-        if (secret == null) secret = jwtProperties.getSecret();
-        return parseTokenWithSecret(token, secret);
+        Claims claims = parseTokenWithSecret(token, secret);
+        validateClaimsForClient(claims, clientType);
+        return claims;
     }
 
     /**
@@ -75,16 +81,9 @@ public class JwtUtil {
      */
     public Claims parseToken(String token) {
         JwtException lastException = null;
-        String[] secrets = {
-                jwtProperties.getSecret(),
-                jwtProperties.getCustomerWebSecret(),
-                jwtProperties.getMerchantWebSecret(),
-                jwtProperties.getAdminWebSecret()
-        };
-        for (String secret : secrets) {
-            if (secret == null) continue;
+        for (ClientType clientType : ClientType.values()) {
             try {
-                return parseTokenWithSecret(token, secret);
+                return parseToken(token, clientType);
             } catch (JwtException e) {
                 lastException = e;
             }
@@ -93,11 +92,34 @@ public class JwtUtil {
     }
 
     private Claims parseTokenWithSecret(String token, String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new JwtException("JWT secret is not configured");
+        }
         return Jwts.parser()
                 .verifyWith(getSigningKey(secret))
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void validateClaimsForClient(Claims claims, ClientType verifiedClientType) {
+        String claimedClientType = claims.get("clientType", String.class);
+        if (!verifiedClientType.name().equals(claimedClientType)) {
+            throw new JwtException("JWT client type does not match signing key");
+        }
+        validateRolesForClient(verifiedClientType, claims.get("roles", List.class));
+    }
+
+    private void validateRolesForClient(ClientType clientType, List<String> roles) {
+        Set<String> allowedRoles = switch (clientType) {
+            case CUSTOMER_WEB -> Set.of(ROLE_CUSTOMER);
+            case MERCHANT_WEB -> Set.of(ROLE_MERCHANT);
+            case ADMIN_WEB -> Set.of(ROLE_ADMIN);
+        };
+        if (roles == null || roles.isEmpty() || !allowedRoles.containsAll(roles)) {
+            throw new JwtException("JWT roles are not allowed for client " + clientType);
+        }
     }
 
     /**

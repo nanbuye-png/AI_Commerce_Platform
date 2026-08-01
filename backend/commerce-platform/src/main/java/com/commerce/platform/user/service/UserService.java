@@ -90,7 +90,12 @@ public class UserService {
         if (request.getClientType() != null) {
             try {
                 clientType = JwtUtil.ClientType.valueOf(request.getClientType());
-            } catch (IllegalArgumentException ignored) {}
+            } catch (IllegalArgumentException ignored) {
+                return Result.error(400, "invalid client type");
+            }
+        }
+        if (!isClientAllowedForRole(clientType, user.getRole())) {
+            return Result.error(403, "account is not allowed to sign in to this client");
         }
 
         List<String> roles = List.of("ROLE_" + user.getRole().name());
@@ -106,6 +111,14 @@ public class UserService {
                 .build();
 
         return Result.success(authResponse);
+    }
+
+    private boolean isClientAllowedForRole(JwtUtil.ClientType clientType, UserRole role) {
+        return switch (clientType) {
+            case CUSTOMER_WEB -> role == UserRole.CUSTOMER;
+            case MERCHANT_WEB -> role == UserRole.MERCHANT;
+            case ADMIN_WEB -> role == UserRole.ADMIN;
+        };
     }
 
     public Optional<User> findByUsername(String username) {

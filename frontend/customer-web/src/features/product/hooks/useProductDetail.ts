@@ -45,7 +45,7 @@ export function useProductDetail(): UseProductDetailReturn {
 
   const refresh = useCallback(() => {
     if (currentProductId) {
-      fetchProduct(currentProductId);
+      void fetchProduct(currentProductId);
     }
   }, [currentProductId, fetchProduct]);
 

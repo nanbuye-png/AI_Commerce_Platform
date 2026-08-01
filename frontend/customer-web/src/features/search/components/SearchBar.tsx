@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface SearchBarProps {
@@ -15,9 +15,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
   size = 'md',
 }) => {
   const [value, setValue] = useState('');
+  const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
-  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
 
   const handleSearch = useCallback((keyword: string) => {
     const trimmed = keyword.trim();
@@ -25,7 +30,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     if (onSearch) {
       onSearch(trimmed);
     } else {
-      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+      void navigate(`/search?q=${encodeURIComponent(trimmed)}`);
     }
   }, [navigate, onSearch]);
 
@@ -63,24 +68,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
           alignItems: 'center',
           height,
           borderRadius: 'var(--radius-full)',
-          border: '1px solid var(--color-border)',
           background: 'var(--color-bg-secondary)',
-          padding: '0 16px',
+          border: `1px solid ${focused ? 'var(--color-accent)' : 'var(--color-border)'}`,
+          boxShadow: focused ? '0 0 0 2px var(--color-accent-light)' : 'none',
           transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
-        }}
-        onFocus={() => {
-          const container = inputRef.current?.parentElement?.parentElement;
-          if (container) {
-            container.style.borderColor = 'var(--color-accent)';
-            container.style.boxShadow = '0 0 0 2px var(--color-accent-light)';
-          }
-        }}
-        onBlur={() => {
-          const container = inputRef.current?.parentElement?.parentElement;
-          if (container) {
-            container.style.borderColor = 'var(--color-border)';
-            container.style.boxShadow = 'none';
-          }
         }}
       >
         <span style={{ color: 'var(--color-text-tertiary)', marginRight: 8, fontSize: '16px' }}>
@@ -91,6 +82,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder={placeholder}
           autoFocus={autoFocus}
           style={{

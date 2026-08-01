@@ -16,7 +16,7 @@ const CheckoutPage: React.FC = () => {
     // Mock submission
     setTimeout(() => {
       setSubmitting(false);
-      navigate('/orders', { replace: true });
+      void navigate('/orders', { replace: true });
     }, 1500);
   };
 

@@ -28,7 +28,7 @@ const useAIStore = create<AIState>((set, get) => ({
         messages: [],
         error: null,
       });
-    } catch (err) {
+    } catch {
       set({ error: '初始化 AI 会话失败' });
     }
   },
@@ -52,7 +52,7 @@ const useAIStore = create<AIState>((set, get) => ({
         messages: [...state.messages, response.message],
         loading: false,
       }));
-    } catch (err) {
+    } catch {
       set({ loading: false, error: 'AI 响应失败，请稍后重试' });
     }
   },

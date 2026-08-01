@@ -20,8 +20,8 @@ import lombok.*;
  */
 @Entity
 @Table(name = "inventory", indexes = {
-    @Index(name = "idx_product_id", columnList = "product_id"),
-    @Index(name = "idx_sku_id", columnList = "sku_id", unique = true)
+    @Index(name = "idx_inventory_product_id", columnList = "product_id"),
+    @Index(name = "idx_inventory_sku_id", columnList = "sku_id", unique = true)
 })
 @Getter
 @Setter

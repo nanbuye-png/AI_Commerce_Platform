@@ -32,26 +32,31 @@ const reasonLabels: Record<string, string> = {
 const RefundListPage: React.FC = () => {
   const navigate = useNavigate();
   const [refunds, setRefunds] = useState<RefundVO[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
 
-  const loadRefunds = async () => {
-    setLoading(true);
-    try {
-      const params: { page?: number; pageSize?: number; status?: string } = { page: 0, pageSize: 50 };
-      if (statusFilter) params.status = statusFilter;
-      const res = await refundApi.list(params);
-      const data = (res as any).data;
-      setRefunds(data?.content || []);
-    } catch (err) {
-      console.error('加载退款列表失败:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadRefunds();
+    let cancelled = false;
+    const params: { page?: number; pageSize?: number; status?: string } = { page: 0, pageSize: 50 };
+    if (statusFilter) params.status = statusFilter;
+
+    void refundApi.list(params)
+      .then((res) => {
+        if (!cancelled) {
+          setRefunds(res.data?.content || []);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error('加载退款列表失败:', err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [statusFilter]);
 
   return (
@@ -60,7 +65,10 @@ const RefundListPage: React.FC = () => {
         <h1 style={{ fontSize: 'var(--font-size-h1)', fontWeight: 600, margin: 0 }}>退款管理</h1>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setLoading(true);
+            setStatusFilter(e.target.value);
+          }}
           style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '14px' }}
         >
           <option value="">全部状态</option>

@@ -1,6 +1,5 @@
 package com.commerce.platform.common.outbox;
 
-import com.commerce.platform.common.event.ProcessedEvent;
 import com.commerce.platform.common.event.ProcessedEventRepository;
 import com.commerce.platform.order.event.OrderPaidEvent;
 import com.commerce.platform.payment.domain.event.PaymentSuccessEvent;
@@ -42,6 +41,8 @@ class OutboxIntegrationTest {
     private ObjectMapper objectMapper;
     private OutboxService outboxService;
     private OutboxEventProcessor processor;
+    private OutboxEventDispatcher dispatcher;
+    private OutboxEventTransactionService transactionService;
 
     @BeforeEach
     void setUp() {
@@ -49,7 +50,9 @@ class OutboxIntegrationTest {
         // 注册 Java 8 time 模块
         objectMapper.findAndRegisterModules();
         outboxService = new OutboxService(outboxRepository, objectMapper);
-        processor = new OutboxEventProcessor(outboxRepository, eventPublisher, objectMapper);
+        dispatcher = spy(new OutboxEventDispatcher(eventPublisher, objectMapper));
+        transactionService = spy(new OutboxEventTransactionService(outboxRepository));
+        processor = new OutboxEventProcessor(transactionService, dispatcher);
     }
 
     // ============================================
@@ -96,13 +99,13 @@ class OutboxIntegrationTest {
                 .status(OutboxStatus.NEW)
                 .build();
 
-        when(outboxRepository.save(any(OutboxEvent.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        outboxEvent.markProcessing("token-success");
+        when(outboxRepository.findByIdForUpdate(outboxEvent.getId())).thenReturn(Optional.of(outboxEvent));
 
         processor.processEvent(outboxEvent);
 
-        verify(outboxRepository, times(2)).save(any(OutboxEvent.class));
         assertEquals(OutboxStatus.SUCCESS, outboxEvent.getStatus());
+        assertNull(outboxEvent.getProcessingToken());
     }
 
     // ============================================
@@ -139,15 +142,86 @@ class OutboxIntegrationTest {
                 .retryCount(0)
                 .build();
 
-        when(outboxRepository.save(any(OutboxEvent.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        outboxEvent.markProcessing("token-failure");
+        when(outboxRepository.findByIdForUpdate(outboxEvent.getId())).thenReturn(Optional.of(outboxEvent));
 
         processor.processEvent(outboxEvent);
 
         assertEquals(OutboxStatus.FAILED, outboxEvent.getStatus());
         assertTrue(outboxEvent.getRetryCount() >= 1);
         assertTrue(outboxEvent.shouldRetry());
+        assertTrue(outboxEvent.getLastError().contains("未知事件类型"));
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Outbox Processor：超时 PROCESSING 事件在未达上限时重新领取")
+    void shouldRetryFailedEventsBelowRetryLimit() throws Exception {
+        PaymentSuccessEvent originalEvent = new PaymentSuccessEvent(
+                1L, 1L, "TXN002", new BigDecimal("50.00"));
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+                .id(2L)
+                .eventId("EVT003")
+                .eventType(PaymentSuccessEvent.class.getName())
+                .payload(objectMapper.writeValueAsString(originalEvent))
+                .status(OutboxStatus.FAILED)
+                .retryCount(1)
+                .build();
+
+        outboxEvent.markProcessing("old-token");
+        when(outboxRepository.findPendingForProcessing(anyCollection(), eq(OutboxStatus.PROCESSING), eq(5),
+                any(), any()))
+                .thenReturn(List.of(outboxEvent));
+
+        List<OutboxEvent> claimed = transactionService.claimPendingEvents();
+
+        assertEquals(1, claimed.size());
+        assertEquals(2, outboxEvent.getRetryCount());
+        assertEquals(OutboxStatus.PROCESSING, outboxEvent.getStatus());
+        assertNotEquals("old-token", outboxEvent.getProcessingToken());
+    }
+
+    @Test
+    @DisplayName("Outbox Processor：第 5 次失败后停止重试并保留错误")
+    void shouldStopRetryingAfterFifthFailure() {
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+                .id(3L)
+                .eventId("EVT004")
+                .eventType(PaymentSuccessEvent.class.getName())
+                .payload("not-json")
+                .status(OutboxStatus.FAILED)
+                .retryCount(4)
+                .build();
+
+        outboxEvent.markProcessing("final-token");
+        when(outboxRepository.findByIdForUpdate(outboxEvent.getId())).thenReturn(Optional.of(outboxEvent));
+
+        transactionService.markFailed(outboxEvent.getId(), "final-token", "not-json");
+
+        assertEquals(OutboxStatus.FAILED, outboxEvent.getStatus());
+        assertEquals(5, outboxEvent.getRetryCount());
+        assertFalse(outboxEvent.shouldRetry());
+        assertNotNull(outboxEvent.getLastError());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Outbox Processor：过期领取者不能覆盖新领取者的处理结果")
+    void shouldIgnoreCompletionFromExpiredProcessingLease() {
+        OutboxEvent outboxEvent = OutboxEvent.builder()
+                .id(4L)
+                .eventId("EVT005")
+                .eventType(PaymentSuccessEvent.class.getName())
+                .payload("{}")
+                .status(OutboxStatus.NEW)
+                .build();
+        outboxEvent.markProcessing("current-token");
+        when(outboxRepository.findByIdForUpdate(4L)).thenReturn(Optional.of(outboxEvent));
+
+        transactionService.markSuccess(4L, "expired-token");
+
+        assertEquals(OutboxStatus.PROCESSING, outboxEvent.getStatus());
+        assertEquals("current-token", outboxEvent.getProcessingToken());
     }
 
     // ============================================
