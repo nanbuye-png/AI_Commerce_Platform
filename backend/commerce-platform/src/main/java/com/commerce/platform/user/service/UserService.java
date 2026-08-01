@@ -10,6 +10,7 @@ import com.commerce.platform.user.entity.User;
 import com.commerce.platform.user.enums.UserRole;
 import com.commerce.platform.user.enums.UserStatus;
 import com.commerce.platform.user.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,12 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+
+    /**
+     * 是否允许自助注册 ADMIN 角色（默认 false，仅通过预置初始管理员创建）
+     */
+    @Value("${app.security.allow-admin-self-register:false}")
+    private boolean allowAdminSelfRegister;
 
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -48,6 +55,8 @@ public class UserService {
             return Result.error(400, "email already exists");
         }
 
+        UserRole role = resolveRegisterRole(request.getRole());
+
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         User user = User.builder()
                 .username(request.getUsername())
@@ -55,13 +64,36 @@ public class UserService {
                 .passwordHash(encodedPassword)
                 .nickname(request.getNickname())
                 .phone(request.getPhone())
-                .role(UserRole.CUSTOMER)
+                .role(role)
                 .status(UserStatus.ACTIVE)
                 .build();
 
         User savedUser = userRepository.save(user);
         UserResponse userResponse = UserResponse.from(savedUser);
         return Result.success(userResponse);
+    }
+
+    /**
+     * 解析注册角色，仅允许 CUSTOMER 与 MERCHANT 自助注册
+     */
+    private UserRole resolveRegisterRole(String roleStr) {
+        if (roleStr == null || roleStr.isBlank()) {
+            return UserRole.CUSTOMER;
+        }
+        try {
+            UserRole role = UserRole.valueOf(roleStr.toUpperCase());
+            return switch (role) {
+                case CUSTOMER, MERCHANT -> role;
+                case ADMIN, SUPER_ADMIN -> {
+                    if (allowAdminSelfRegister && role == UserRole.ADMIN) {
+                        yield UserRole.ADMIN;
+                    }
+                    throw new IllegalArgumentException("role not allowed for self-register");
+                }
+            };
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("invalid or not allowed role: " + roleStr);
+        }
     }
 
     /**

@@ -65,6 +65,13 @@ const Login: React.FC = () => {
             <Text type="secondary">AI Commerce Platform</Text>
           </div>
 
+          <Alert
+            message="初始管理员账号由系统预置"
+            description="首次启动将自动创建 admin 账号，可使用 .env 中的 ADMIN_USERNAME / ADMIN_PASSWORD 登录。"
+            type="info"
+            showIcon
+          />
+
           {error && (
             <Alert message={error} type="error" showIcon closable onClose={() => setError(null)} />
           )}

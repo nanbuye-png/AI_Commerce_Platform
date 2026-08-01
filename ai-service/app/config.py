@@ -5,8 +5,11 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # 项目根目录
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 # 服务配置
 SERVICE_NAME = os.getenv("AI_SERVICE_NAME", "ai-service")

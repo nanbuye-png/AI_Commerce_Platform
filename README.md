@@ -62,8 +62,8 @@ AI_SERVICE_BASE_URL
 AI_INTERNAL_API_TOKEN
 AI_CONNECT_TIMEOUT
 AI_REQUEST_TIMEOUT
-AI_COMMERCE_BASE_URL
-AI_COMMERCE_REQUEST_TIMEOUT
+COMMERCE_CORE_BASE_URL
+COMMERCE_CORE_TIMEOUT_SECONDS
 AI_LLM_PROVIDER
 AI_LLM_BASE_URL
 AI_LLM_API_KEY
@@ -84,7 +84,14 @@ CREATE DATABASE ai_commerce_platform;
 
 ### 2. 配置服务间认证
 
-启动 Commerce Core 和 AI Service 前，为两个进程设置相同的内部令牌。以下仅为占位形式，不要使用固定示例值：
+先从模板创建各服务自己的本地配置文件：
+
+```powershell
+Copy-Item backend/commerce-platform/.env.example backend/commerce-platform/.env
+Copy-Item ai-service/.env.example ai-service/.env
+```
+
+Linux/macOS 使用 `cp` 执行同样操作。真实 `.env` 已被 Git 忽略；请修改数据库密码，并为两个文件设置完全相同的内部令牌。以下仅为占位形式，不要使用固定示例值：
 
 ```text
 AI_INTERNAL_API_TOKEN=<shared-random-secret>
@@ -128,9 +135,9 @@ python -m pip install -r requirements.txt -r requirements-dev.txt
 python -m uvicorn app.main:app --reload
 ```
 
-AI Service 默认监听 `8000`，健康检查为 `GET /api/v1/health`。内部流式端点为 `POST /api/v1/internal/ai/chat/stream`，必须携带 `X-Internal-Token`，不应由浏览器直接调用。AI Service 默认通过 `AI_COMMERCE_BASE_URL=http://localhost:8080` 调用 Commerce Core，超时由 `AI_COMMERCE_REQUEST_TIMEOUT` 配置。
+AI Service 默认监听 `8000`，健康检查为 `GET /api/v1/health`。内部流式端点为 `POST /api/v1/internal/ai/chat/stream`，必须携带 `X-Internal-Token`，不应由浏览器直接调用。AI Service 默认通过 `COMMERCE_CORE_BASE_URL=http://localhost:8080` 调用 Commerce Core，超时由 `COMMERCE_CORE_TIMEOUT_SECONDS` 配置。
 
-LLM 默认使用无需外部密钥的确定性 Mock Provider。要连接 OpenAI 或实现相同 `/chat/completions` 流式协议的服务，显式设置：
+LLM 默认使用无需外部 API Key 的确定性 Mock Provider，因此只验证本地完整链路时不需要填写 `AI_LLM_API_KEY`。要连接 OpenAI 或实现相同 `/chat/completions` 流式协议的服务，显式设置：
 
 ```text
 AI_LLM_PROVIDER=openai-compatible
@@ -140,6 +147,23 @@ AI_DEFAULT_MODEL=gpt-4o-mini
 ```
 
 启用 `openai-compatible` 时缺少 API Key 会使 AI Service 启动失败。Provider 密钥只注入 AI Service，不应进入 Commerce Core、任何 Web 构建变量或版本库。上游响应会被解析为平台自己的 SSE 契约，商品搜索上下文按 `AI_LLM_CONTEXT_MAX_CHARS` 截断，客户端关闭时共享 HTTP 连接池会随应用生命周期释放。
+
+要连接 DeepSeek（OpenAI 兼容协议），在 `ai-service/.env` 显式设置：
+
+```text
+AI_LLM_PROVIDER=openai-compatible
+AI_LLM_BASE_URL=https://api.deepseek.com/v1
+AI_LLM_API_KEY=<your-deepseek-api-key>
+AI_DEFAULT_MODEL=deepseek-chat
+```
+
+## 初始管理员与商户注册
+
+- 后端首次启动自动创建初始管理员（默认 `admin` / `admin123`，可在 `backend/commerce-platform/.env` 覆盖），仅供 admin-web 登录，**不开放 ADMIN 自助注册**。
+- 商户通过 merchant-web `/register` 页面公开注册（自动携带 `role=MERCHANT`）。
+- 商户创建商品后状态为 `PENDING_REVIEW`（待审核），需 admin-web → 商品管理 → 审核通过（`ON_SHELF`）后，用户端首页/列表/详情才可见。
+
+需要手动填写的密钥集合（一键启动）：`backend/commerce-platform/.env` 的 `DB_PASSWORD`、三个 `JWT_*_WEB_SECRET`、`AI_INTERNAL_API_TOKEN`；`ai-service/.env` 的 `AI_INTERNAL_API_TOKEN`（与后端一致）与 `AI_LLM_API_KEY`。启动顺序：PostgreSQL → backend → ai-service → 三个前端。
 
 ## 质量门禁
 

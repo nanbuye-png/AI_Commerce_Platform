@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, Space } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { loginApi } from '../services/auth';
 import useAuthStore from '../stores/authStore';
 import type { ApiResult, AuthResponse } from '@shared/types/auth';
@@ -97,6 +97,12 @@ const Login: React.FC = () => {
               </Button>
             </Form.Item>
           </Form>
+
+          <div style={{ textAlign: 'center' }}>
+            <Text>
+              还没有账号？ <Link to="/register">立即注册</Link>
+            </Text>
+          </div>
         </Space>
       </Card>
     </div>

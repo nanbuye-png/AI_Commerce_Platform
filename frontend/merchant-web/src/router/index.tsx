@@ -11,6 +11,7 @@ import ReturnListPage from '../features/returns/ReturnListPage';
 import ReturnDetailPage from '../features/returns/ReturnDetailPage';
 import AIAssistantPage from '../features/ai-assistant/AIAssistantPage';
 import Login from '../pages/Login';
+import Register from '../pages/Register';
 import ProtectedRoute from './ProtectedRoute';
 import RoleGuard from './RoleGuard';
 
@@ -18,6 +19,10 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/register',
+    element: <Register />,
   },
   {
     path: '/',

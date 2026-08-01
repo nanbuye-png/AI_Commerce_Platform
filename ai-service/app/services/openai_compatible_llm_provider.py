@@ -95,6 +95,11 @@ class OpenAiCompatibleLlmProvider:
                     token = self._parse_sse_line(line)
                     if token is not None:
                         yield token
+        except httpx.HTTPStatusError as exc:
+            # 保留 HTTP 状态码（如 401/402/429），但不暴露上游响应体中的敏感信息
+            raise LlmProviderError(
+                f"LLM provider stream failed (HTTP {exc.response.status_code})"
+            ) from exc
         except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
             raise LlmProviderError("LLM provider stream failed") from exc
 
@@ -122,7 +127,12 @@ class OpenAiCompatibleLlmProvider:
             delta = choice.get("delta")
             if not isinstance(delta, dict):
                 continue
+            # 标准 OpenAI 兼容内容
             content = delta.get("content")
             if isinstance(content, str) and content:
                 return content
+            # DeepSeek Reasoner 模型的思维链内容（deepseek-reasoner）
+            reasoning = delta.get("reasoning_content")
+            if isinstance(reasoning, str) and reasoning:
+                return reasoning
         return None

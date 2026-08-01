@@ -20,6 +20,8 @@ export interface RegisterRequest {
   password: string;
   nickname?: string;
   phone?: string;
+  /** 注册角色：CUSTOMER / MERCHANT（ADMIN 不允许自助注册） */
+  role?: string;
 }
 
 /** 认证响应 */

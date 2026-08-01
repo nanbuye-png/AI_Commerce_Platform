@@ -12,7 +12,10 @@ import type {
 } from '@shared/types/auth';
 
 export function registerApi(data: RegisterRequest): Promise<ApiResult<UserInfo>> {
-  return request.post('/api/auth/register', data);
+  return request.post('/api/auth/register', {
+    ...data,
+    role: 'MERCHANT',
+  });
 }
 
 export function loginApi(data: LoginRequest): Promise<ApiResult<AuthResponse>> {

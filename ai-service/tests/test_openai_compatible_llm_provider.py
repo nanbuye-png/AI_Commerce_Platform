@@ -91,6 +91,33 @@ def test_stream_maps_upstream_http_error_without_exposing_response() -> None:
     assert "secret details" not in str(exc_info.value)
 
 
+def test_stream_parses_deepseek_reasoning_content() -> None:
+    """DeepSeek Reasoner 模型通过 delta.reasoning_content 输出思维链。"""
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        body = (
+            'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\n'
+            'data: {"choices":[{"delta":{"reasoning_content":"先分析"}}]}\n\n'
+            'data: {"choices":[{"delta":{"reasoning_content":"用户意图"}}]}\n\n'
+            'data: {"choices":[{"delta":{"content":"最终答案"}}]}\n\n'
+            "data: [DONE]\n\n"
+        )
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            content=body.encode(),
+        )
+
+    async def run_test() -> list[str]:
+        provider = _provider(handler)
+        tokens = [token async for token in provider.stream("你好")]
+        return tokens
+
+    tokens = asyncio.run(run_test())
+
+    assert tokens == ["先分析", "用户意图", "最终答案"]
+
+
 def test_provider_requires_api_key() -> None:
     with pytest.raises(ValueError, match="AI_LLM_API_KEY"):
         OpenAiCompatibleLlmProvider(

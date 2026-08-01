@@ -8,13 +8,18 @@ from app.services.commerce_tool import CommerceToolError
 
 def _client(monkeypatch) -> TestClient:
     monkeypatch.setenv("AI_INTERNAL_API_TOKEN", "test-internal-token")
+    monkeypatch.setenv("AI_LLM_PROVIDER", "mock")
 
+    import app.api.chat as chat_api
     import app.config
     import app.core.internal_auth
     import app.main
 
     importlib.reload(app.config)
     importlib.reload(app.core.internal_auth)
+    # provider 在 chat 模块加载时创建，先重载 chat 使用 mock provider，
+    # 再重载 main，使 main import 到新的 chat router/provider
+    importlib.reload(chat_api)
     importlib.reload(app.main)
     return TestClient(app.main.app)
 

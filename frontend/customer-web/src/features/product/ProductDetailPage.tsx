@@ -1,35 +1,77 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ProductGallery from './components/ProductGallery';
 import ProductPrice from './components/ProductPrice';
-import ProductBadge from './components/ProductBadge';
 import ProductSkeleton from './components/ProductSkeleton';
-import type { Product } from './types/product';
+import { productService, type ProductView } from '../../services/product';
 
 const ProductDetailPage: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
-  const loading = false;
-  // const { product, loading, error, fetchProduct } = useProductDetail();
-  const product = null as Product | null;
+  const [product, setProduct] = useState<ProductView | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (productId) {
-      // fetchProduct(productId);
+    if (!productId) {
+      setLoading(false);
+      setError('缺少商品 ID');
+      return;
     }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    productService
+      .getProductDetail(productId)
+      .then((res) => {
+        if (!cancelled) setProduct(res);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error('加载商品详情失败:', err);
+          setError('商品不存在或已下架');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [productId]);
 
   if (loading) {
-    return <ProductSkeleton variant="detail" />;
+    return (
+      <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 960, margin: '0 auto' }}>
+        <ProductSkeleton variant="detail" />
+      </div>
+    );
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
       <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 960, margin: '0 auto', textAlign: 'center' }}>
         <h2 style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-md)' }}>
-          商品信息加载中...
+          {error ?? '商品信息加载中...'}
         </h2>
-        <ProductSkeleton variant="detail" />
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            padding: '10px 24px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--color-accent)',
+            color: '#fff',
+            fontSize: '14px',
+            fontWeight: 500,
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          返回首页
+        </button>
       </div>
     );
   }
@@ -53,16 +95,19 @@ const ProductDetailPage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xl)', marginBottom: 'var(--spacing-xl)' }}>
         {/* Gallery */}
         <div>
-          <ProductGallery images={product.images} thumbnail={product.thumbnail} />
+          <ProductGallery
+            images={product.images.map((url, idx) => ({
+              id: `${product.id}-img-${idx}`,
+              url,
+              alt: product.name,
+              isPrimary: idx === 0,
+            }))}
+            thumbnail={product.thumbnail}
+          />
         </div>
 
         {/* Info */}
         <div>
-          {/* Title & Badges */}
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', marginBottom: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-            {product.isNew && <ProductBadge type="new" />}
-            {product.isHot && <ProductBadge type="hot" />}
-          </div>
           <h1 style={{ fontSize: 'var(--font-size-h2)', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-sm)' }}>
             {product.name}
           </h1>
@@ -77,13 +122,11 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Price */}
           <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--spacing-lg)' }}>
-            <ProductPrice price={product.price} originalPrice={product.originalPrice} size="lg" />
-            {/* Installment placeholder */}
-            {product.price >= 1000 && (
-              <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: 4 }}>
-                支持分期付款，低至 ¥{(product.price / 12).toFixed(2)}/月
-              </p>
-            )}
+            <ProductPrice
+              price={product.price}
+              originalPrice={product.originalPrice}
+              size="lg"
+            />
           </div>
 
           {/* Ratings & Sales */}
@@ -121,64 +164,6 @@ const ProductDetailPage: React.FC = () => {
             </div>
           ))}
 
-          {/* Quantity */}
-          <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-sm)' }}>
-              数量
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-              <button
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg-secondary)',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                −
-              </button>
-              <input
-                type="number"
-                value={1}
-                style={{
-                  width: 60,
-                  height: 36,
-                  textAlign: 'center',
-                  border: '1px solid var(--color-border)',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-                  fontSize: '14px',
-                  outline: 'none',
-                  color: 'var(--color-text-primary)',
-                  background: 'var(--color-bg-primary)',
-                }}
-                readOnly
-              />
-              <button
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg-secondary)',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
             <button
@@ -215,7 +200,7 @@ const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* AI Advisor Placeholder */}
+      {/* AI Advisor */}
       <div
         style={{
           padding: 'var(--spacing-xl)',
@@ -252,40 +237,6 @@ const ProductDetailPage: React.FC = () => {
         >
           咨询 AI
         </button>
-      </div>
-
-      {/* Related Products Placeholder */}
-      <div>
-        <h2 style={{ fontSize: 'var(--font-size-h2)', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-md)' }}>
-          相关推荐
-        </h2>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-            gap: 'var(--spacing-md)',
-          }}
-        >
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              style={{
-                background: 'var(--color-bg-secondary)',
-                borderRadius: 'var(--radius-md)',
-                overflow: 'hidden',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ aspectRatio: '1/1', background: 'var(--color-bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
-                推荐 {i}
-              </div>
-              <div style={{ padding: 'var(--spacing-sm)' }}>
-                <p style={{ fontSize: '13px', color: 'var(--color-text-primary)', marginBottom: 2 }}>推荐商品 {i}</p>
-                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-accent)' }}>¥99.00</p>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

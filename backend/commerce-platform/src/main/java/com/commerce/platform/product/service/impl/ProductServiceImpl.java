@@ -73,7 +73,7 @@ public class ProductServiceImpl implements ProductService {
                 .productName(request.getProductName())
                 .description(request.getDescription())
                 .brand(request.getBrand())
-                .status(ProductStatus.DRAFT)
+                .status(ProductStatus.PENDING_REVIEW)
                 .salesCount(0)
                 .deleted(false)
                 .build();

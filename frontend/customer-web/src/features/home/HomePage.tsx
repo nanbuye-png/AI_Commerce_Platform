@@ -1,7 +1,40 @@
-import React from 'react';
-import { Card } from '../../components/common';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { productService, type ProductView } from '../../services/product';
 
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
+  const [products, setProducts] = useState<ProductView[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    productService
+      .listProducts({ page: 1, size: 12 })
+      .then((res) => {
+        if (!cancelled) setProducts(res.items);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          console.error('加载商品列表失败:', err);
+          setError('商品加载失败，请稍后重试');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleDetail = (id: number) => {
+    navigate(`/products/${id}`);
+  };
+
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 1200, margin: '0 auto' }}>
       {/* Hero Banner Area */}
@@ -32,6 +65,7 @@ const HomePage: React.FC = () => {
           {['电子产品', '服装', '家居', '图书', '运动', '美妆'].map((cat) => (
             <div
               key={cat}
+              onClick={() => navigate('/products')}
               style={{
                 textAlign: 'center',
                 padding: 'var(--spacing-md)',
@@ -53,21 +87,85 @@ const HomePage: React.FC = () => {
         <h2 style={{ fontSize: 'var(--font-size-h2)', fontWeight: 600, marginBottom: 'var(--spacing-md)' }}>
           为你推荐
         </h2>
+
+        {loading && (
+          <p style={{ color: 'var(--color-text-tertiary)', fontSize: '14px' }}>商品加载中...</p>
+        )}
+
+        {error && !loading && (
+          <p style={{ color: 'var(--color-text-tertiary)', fontSize: '14px' }}>{error}</p>
+        )}
+
+        {!loading && !error && products.length === 0 && (
+          <p style={{ color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
+            暂无上架商品，敬请期待
+          </p>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 'var(--spacing-md)' }}>
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} padding="0" onClick={() => {}}>
-              <div style={{ aspectRatio: '1/1', background: 'var(--color-bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary)', fontSize: '14px' }}>
-                商品图片 {i}
+          {products.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => handleDetail(p.id)}
+              style={{
+                cursor: 'pointer',
+                background: 'var(--color-bg-primary)',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'box-shadow var(--transition-fast), transform var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-md)';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+              }}
+            >
+              <div
+                style={{
+                  aspectRatio: '1/1',
+                  background: 'var(--color-bg-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-text-tertiary)',
+                  fontSize: '14px',
+                  overflow: 'hidden',
+                }}
+              >
+                {p.thumbnail ? (
+                  <img
+                    src={p.thumbnail}
+                    alt={p.name}
+                    loading="lazy"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  '暂无图片'
+                )}
               </div>
               <div style={{ padding: 'var(--spacing-md)' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 500, marginBottom: 'var(--spacing-xs)', color: 'var(--color-text-primary)' }}>
-                  推荐商品 {i}
+                <h3
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    marginBottom: 'var(--spacing-xs)',
+                    color: 'var(--color-text-primary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {p.name}
                 </h3>
                 <p style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-accent)' }}>
-                  ¥99.00
+                  {p.price > 0 ? `¥${p.price.toFixed(2)}` : '价格待定'}
                 </p>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       </section>

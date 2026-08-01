@@ -38,4 +38,11 @@ public class RegisterRequest {
      * 手机号（可选）
      */
     private String phone;
+
+    /**
+     * 注册角色（可选，默认 CUSTOMER）
+     * 允许值：CUSTOMER / MERCHANT
+     * ADMIN / SUPER_ADMIN 不允许自助注册，由系统预置或后台创建
+     */
+    private String role;
 }

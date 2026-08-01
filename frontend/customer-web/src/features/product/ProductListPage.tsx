@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProductGrid from './components/ProductGrid';
 import ProductSkeleton from './components/ProductSkeleton';
-import type { Product, ProductSortBy } from './types/product';
+import { productService, type ProductView } from '../../services/product';
+import type { Product } from './types/product';
 
-const sortOptions: { label: string; value: ProductSortBy }[] = [
+const sortOptions: { label: string; value: string }[] = [
   { label: '综合', value: 'default' },
   { label: '销量', value: 'sales' },
   { label: '价格 ↑', value: 'price_asc' },
@@ -21,11 +22,65 @@ const filters = [
   { label: '运动', value: 'sports' },
 ];
 
+/** 将 productService 的 ProductView 映射为现有 Product 类型（供 ProductGrid/ProductCard 渲染） */
+function toProduct(p: ProductView): Product {
+  return {
+    id: String(p.id),
+    name: p.name,
+    description: p.description,
+    brand: p.brand,
+    categoryId: p.categoryName ?? '',
+    categoryName: p.categoryName,
+    images: p.images.map((url, idx) => ({
+      id: `${p.id}-img-${idx}`,
+      url,
+      alt: p.name,
+      isPrimary: idx === 0,
+    })),
+    thumbnail: p.thumbnail,
+    price: p.price,
+    originalPrice: p.originalPrice,
+    currency: 'CNY',
+    rating: p.rating,
+    reviewCount: p.reviewCount,
+    salesCount: p.salesCount,
+    stock: p.stock,
+    status: 'ACTIVE',
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
 const ProductListPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('all');
-  const [activeSort, setActiveSort] = useState<ProductSortBy>('default');
-  const loading = false;
-  const products: Product[] = [];
+  const [activeSort, setActiveSort] = useState('default');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    productService
+      .listProducts({ page: 1, size: 20 })
+      .then((res) => {
+        if (!cancelled) {
+          setProducts(res.items.map(toProduct));
+          setTotal(res.total);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载商品列表失败:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFilter, activeSort]);
 
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 1200, margin: '0 auto' }}>
@@ -44,7 +99,7 @@ const ProductListPage: React.FC = () => {
           全部商品
         </h1>
         <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-          共 0 件商品
+          共 {total} 件商品
         </span>
       </div>
 
