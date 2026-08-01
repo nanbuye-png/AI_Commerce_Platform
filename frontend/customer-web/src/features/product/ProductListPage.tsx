@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ProductGrid from './components/ProductGrid';
 import ProductSkeleton from './components/ProductSkeleton';
-import { productService, type ProductView } from '../../services/product';
+import { productService, type ProductView, type CategoryNode } from '../../services/product';
 import type { Product } from './types/product';
 
 const sortOptions: { label: string; value: string }[] = [
@@ -11,15 +12,6 @@ const sortOptions: { label: string; value: string }[] = [
   { label: '价格 ↓', value: 'price_desc' },
   { label: '新品', value: 'newest' },
   { label: '好评', value: 'rating' },
-];
-
-const filters = [
-  { label: '全部', value: 'all' },
-  { label: '电子产品', value: 'electronics' },
-  { label: '服装', value: 'clothing' },
-  { label: '家居', value: 'home' },
-  { label: '图书', value: 'books' },
-  { label: '运动', value: 'sports' },
 ];
 
 /** 将 productService 的 ProductView 映射为现有 Product 类型（供 ProductGrid/ProductCard 渲染） */
@@ -52,18 +44,46 @@ function toProduct(p: ProductView): Product {
 }
 
 const ProductListPage: React.FC = () => {
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchParams] = useSearchParams();
+  const categoryIdFromUrl = Number(searchParams.get('categoryId') || 0) || 0;
+
+  const [activeFilter, setActiveFilter] = useState<string>(categoryIdFromUrl ? String(categoryIdFromUrl) : 'all');
   const [activeSort, setActiveSort] = useState('default');
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
+  // 加载分类树
+  useEffect(() => {
+    let cancelled = false;
+    productService
+      .getCategoryTree()
+      .then((res) => {
+        if (!cancelled) setCategories(res);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载分类失败:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 当 URL 的 categoryId 变化时同步筛选状态
+  useEffect(() => {
+    setActiveFilter(categoryIdFromUrl ? String(categoryIdFromUrl) : 'all');
+  }, [categoryIdFromUrl]);
+
+  // 加载商品（支持分类过滤）
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
+    const categoryId = activeFilter !== 'all' ? Number(activeFilter) : undefined;
+
     productService
-      .listProducts({ page: 1, size: 20 })
+      .listProducts({ page: 1, size: 20, ...(categoryId ? { categoryId } : {}) })
       .then((res) => {
         if (!cancelled) {
           setProducts(res.items.map(toProduct));
@@ -103,7 +123,7 @@ const ProductListPage: React.FC = () => {
         </span>
       </div>
 
-      {/* Filter Area */}
+      {/* Filter Area - 分类筛选 */}
       <div
         style={{
           display: 'flex',
@@ -114,23 +134,39 @@ const ProductListPage: React.FC = () => {
           borderBottom: '1px solid var(--color-border-light)',
         }}
       >
-        {filters.map((f) => (
+        <button
+          onClick={() => setActiveFilter('all')}
+          style={{
+            padding: '6px 18px',
+            borderRadius: 'var(--radius-full)',
+            border: 'none',
+            background: activeFilter === 'all' ? 'var(--color-accent)' : 'var(--color-bg-secondary)',
+            color: activeFilter === 'all' ? '#fff' : 'var(--color-text-primary)',
+            fontSize: '14px',
+            fontWeight: activeFilter === 'all' ? 500 : 400,
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)',
+          }}
+        >
+          全部
+        </button>
+        {categories.map((cat) => (
           <button
-            key={f.value}
-            onClick={() => setActiveFilter(f.value)}
+            key={cat.id}
+            onClick={() => setActiveFilter(String(cat.id))}
             style={{
               padding: '6px 18px',
               borderRadius: 'var(--radius-full)',
               border: 'none',
-              background: activeFilter === f.value ? 'var(--color-accent)' : 'var(--color-bg-secondary)',
-              color: activeFilter === f.value ? '#fff' : 'var(--color-text-primary)',
+              background: activeFilter === String(cat.id) ? 'var(--color-accent)' : 'var(--color-bg-secondary)',
+              color: activeFilter === String(cat.id) ? '#fff' : 'var(--color-text-primary)',
               fontSize: '14px',
-              fontWeight: activeFilter === f.value ? 500 : 400,
+              fontWeight: activeFilter === String(cat.id) ? 500 : 400,
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
             }}
           >
-            {f.label}
+            {cat.categoryName}
           </button>
         ))}
       </div>

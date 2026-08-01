@@ -178,12 +178,31 @@ function toDetailView(p: BackendProductDetail): ProductView {
   };
 }
 
+/** 分类树节点 */
+export interface CategoryNode {
+  id: number;
+  categoryName: string;
+  parentId?: number;
+  level?: number;
+  sort?: number;
+  children?: CategoryNode[];
+}
+
 export const productService = {
+  /**
+   * 分类树
+   * GET /api/categories/tree
+   */
+  async getCategoryTree(): Promise<CategoryNode[]> {
+    const res = await request.get<ApiResult<CategoryNode[]>, ApiResult<CategoryNode[]>>('/api/categories/tree');
+    return res.data ?? [];
+  },
+
   /**
    * 商品列表
    * GET /api/products?page=1&size=20&keyword=xxx
    */
-  async listProducts(params: { page?: number; size?: number; keyword?: string } = {}): Promise<{
+  async listProducts(params: { page?: number; size?: number; keyword?: string; categoryId?: number } = {}): Promise<{
     items: ProductView[];
     total: number;
     page: number;
@@ -194,6 +213,7 @@ export const productService = {
         page: params.page ?? 1,
         size: params.size ?? 20,
         ...(params.keyword ? { keyword: params.keyword } : {}),
+        ...(params.categoryId ? { categoryId: params.categoryId } : {}),
       },
     });
     const data = res.data;

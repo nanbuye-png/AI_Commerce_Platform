@@ -1,12 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { productService, type ProductView } from '../../services/product';
+import { productService, type ProductView, type CategoryNode } from '../../services/product';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<ProductView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    productService
+      .getCategoryTree()
+      .then((res) => {
+        if (!cancelled) setCategories(res);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('加载分类失败:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,23 +78,41 @@ const HomePage: React.FC = () => {
           商品分类
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 'var(--spacing-md)' }}>
-          {['电子产品', '服装', '家居', '图书', '运动', '美妆'].map((cat) => (
-            <div
-              key={cat}
-              onClick={() => navigate('/products')}
-              style={{
-                textAlign: 'center',
-                padding: 'var(--spacing-md)',
-                background: 'var(--color-bg-secondary)',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                fontSize: '14px',
-                color: 'var(--color-text-primary)',
-              }}
-            >
-              {cat}
-            </div>
-          ))}
+          {categories.length > 0
+            ? categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  onClick={() => navigate(`/products?categoryId=${cat.id}`)}
+                  style={{
+                    textAlign: 'center',
+                    padding: 'var(--spacing-md)',
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {cat.categoryName}
+                </div>
+              ))
+            : ['电子产品', '服装', '家居', '图书', '运动', '美妆'].map((cat) => (
+                <div
+                  key={cat}
+                  onClick={() => navigate('/products')}
+                  style={{
+                    textAlign: 'center',
+                    padding: 'var(--spacing-md)',
+                    background: 'var(--color-bg-secondary)',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  {cat}
+                </div>
+              ))}
         </div>
       </section>
 
