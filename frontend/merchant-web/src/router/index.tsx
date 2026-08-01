@@ -5,6 +5,7 @@ import ProductListPage from '../features/products/ProductListPage';
 import ProductCreatePage from '../features/products/ProductCreatePage';
 import ProductEditPage from '../features/products/ProductEditPage';
 import OrderListPage from '../features/orders/OrderListPage';
+import OrderDetailPage from '../features/orders/OrderDetailPage';
 import RefundListPage from '../features/refunds/RefundListPage';
 import RefundDetailPage from '../features/refunds/RefundDetailPage';
 import ReturnListPage from '../features/returns/ReturnListPage';
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
       { path: 'products/create', element: <ProductCreatePage /> },
       { path: 'products/:id/edit', element: <ProductEditPage /> },
       { path: 'orders', element: <OrderListPage /> },
+      { path: 'orders/:orderNo', element: <OrderDetailPage /> },
       { path: 'refunds', element: <RefundListPage /> },
       { path: 'refunds/:id', element: <RefundDetailPage /> },
       { path: 'returns', element: <ReturnListPage /> },
