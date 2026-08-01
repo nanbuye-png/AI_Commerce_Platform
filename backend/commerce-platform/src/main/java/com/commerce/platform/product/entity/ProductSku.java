@@ -3,7 +3,9 @@ package com.commerce.platform.product.entity;
 import com.commerce.platform.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 商品 SKU 实体
@@ -32,6 +34,7 @@ public class ProductSku extends BaseEntity {
     private String skuCode;
 
     @Column(name = "attributes_json", nullable = false, columnDefinition = "JSON")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String attributesJson;
 
     @Column(nullable = false, precision = 12, scale = 2)

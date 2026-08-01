@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import useAuthStore from '../stores/authStore';
 
 interface SidebarItem {
   path: string;
@@ -22,6 +23,12 @@ const MerchantLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { userInfo, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    void navigate('/login', { replace: true });
+  };
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
@@ -150,8 +157,14 @@ const MerchantLayout: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
             <button style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>🔔</button>
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', fontSize: '14px', fontWeight: 600 }}>
-              M
+              {(userInfo?.nickname || userInfo?.username || 'M').charAt(0).toUpperCase()}
             </div>
+            <button
+              onClick={handleLogout}
+              style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}
+            >
+              退出登录
+            </button>
           </div>
         </header>
 

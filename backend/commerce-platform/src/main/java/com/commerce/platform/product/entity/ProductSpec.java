@@ -3,7 +3,9 @@ package com.commerce.platform.product.entity;
 import com.commerce.platform.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 商品规格模板实体
@@ -29,6 +31,7 @@ public class ProductSpec extends BaseEntity {
     private String specName;
 
     @Column(name = "spec_values", nullable = false, columnDefinition = "JSON")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String specValues;
 
     @Column(nullable = false)
