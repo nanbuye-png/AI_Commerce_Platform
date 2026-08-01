@@ -124,6 +124,10 @@ npm ci
 npm run dev
 ```
 
+三端开发端口已固定：customer-web `5173`、merchant-web `5174`、admin-web `5175`，与后端 CORS 白名单一致。
+
+> **遇到深层路由（`/products`、`/search` 等）打开 404？** 请确认是通过 `npm run dev` 或 `npm run preview` 访问的——Vite 对 SPA history 路由自带 fallback，深层路径刷新会返回 `index.html`。如果使用 `python http.server`、`nginx` 默认配置等普通静态服务器直接托管 `dist` 目录，访问 `/products` 会因不存在 `products.html` 而返回真实 404；此时应改用 `npm run preview`，或在服务器配置中将所有非静态资源路径重写到 `index.html`（如 nginx 加 `try_files $uri /index.html;`）。
+
 ### 5. 启动 AI Service
 
 ```bash
