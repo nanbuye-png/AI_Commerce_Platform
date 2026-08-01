@@ -30,7 +30,8 @@ public class InternalAiProductController {
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(defaultValue = "1") @Min(1) Integer page,
-            @RequestParam(defaultValue = "6") @Min(1) @Max(20) Integer pageSize) {
+            @RequestParam(defaultValue = "6") @Min(1) @Max(20) Integer pageSize,
+            @RequestParam(required = false) String sortBy) {
         ProductSearchRequest request = new ProductSearchRequest();
         request.setKeyword(keyword);
         request.setCategoryId(categoryId);
@@ -38,6 +39,8 @@ public class InternalAiProductController {
         request.setMaxPrice(maxPrice);
         request.setPage(page);
         request.setSize(pageSize);
+        // 支持 salesCount（热门推荐按销量排序）等排序字段
+        request.setSortBy(sortBy);
 
         var resultPage = customerProductService.listProducts(request);
         return Result.success(new InternalProductSearchResponse(

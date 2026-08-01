@@ -20,7 +20,9 @@ class CommerceTool:
             "categoryId": intent.category_id,
             "minPrice": intent.min_price,
             "maxPrice": intent.max_price,
+            "page": intent.page,
             "pageSize": intent.page_size,
+            "sortBy": intent.sort_by,
         }
         params = {key: value for key, value in params.items() if value is not None}
         headers = {"X-Internal-Token": config.INTERNAL_API_TOKEN}
