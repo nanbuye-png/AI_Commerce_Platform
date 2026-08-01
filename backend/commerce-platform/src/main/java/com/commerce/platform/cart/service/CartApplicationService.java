@@ -2,6 +2,7 @@ package com.commerce.platform.cart.service;
 
 import com.commerce.platform.cart.domain.entity.Cart;
 import com.commerce.platform.cart.domain.entity.CartItem;
+import com.commerce.platform.cart.domain.repository.CartItemRepository;
 import com.commerce.platform.cart.domain.repository.CartRepository;
 import com.commerce.platform.cart.dto.request.AddCartItemRequest;
 import com.commerce.platform.cart.dto.request.RemoveCartItemRequest;
@@ -22,6 +23,7 @@ import java.util.List;
 public class CartApplicationService {
 
     private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
 
     @Transactional(readOnly = true)
     public CartVO getCart(Long userId) {
@@ -54,10 +56,17 @@ public class CartApplicationService {
     @Transactional(rollbackFor = Exception.class)
     public CartVO removeItem(Long userId, RemoveCartItemRequest request) {
         Cart cart = findCartByUserId(userId);
-        cart.removeItem(request.getSkuId());
-        cartRepository.save(cart);
+        // 直接对数据库执行 bulk DELETE 物理删除指定 SKU 条目。
+        // @Modifying(clearAutomatically=true) 会清空持久化上下文，
+        // 避免 Hibernate 对 Cart 的 @OneToMany orphanRemoval 集合做 diff 时
+        // 执行 "UPDATE cart_item SET cart_id=null"（cart_id 为 NOT NULL 违反约束）。
+        cartItemRepository.deleteByCartIdAndSkuId(cart.getId(), request.getSkuId());
         log.info("购物车删除商品：userId={}, skuId={}", userId, request.getSkuId());
-        return toCartVO(cart);
+
+        // 删除后重新加载购物车，返回最新状态
+        Cart refreshed = cartRepository.findByUserId(userId)
+                .orElse(cart);
+        return toCartVO(refreshed);
     }
 
     private Cart findCartByUserId(Long userId) {

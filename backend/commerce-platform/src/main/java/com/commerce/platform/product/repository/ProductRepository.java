@@ -46,6 +46,29 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             ProductStatus status, String productName, Pageable pageable);
 
     /**
+     * Customer端：查询ON_SHELF商品，按名称或分类名模糊搜索
+     * 支持用户输入分类名（如"服装"、"电脑"）时也能命中对应分类下的商品。
+     */
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            WHERE p.status = :status
+              AND (:keyword = ''
+                   OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR p.categoryId IN (
+                       SELECT c.id FROM Category c
+                       WHERE LOWER(c.categoryName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                          OR c.parentId IN (
+                              SELECT parent.id FROM Category parent
+                              WHERE LOWER(parent.categoryName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                          )
+                   ))
+            """)
+    Page<Product> findByStatusAndKeywordOrCategoryName(
+            @Param("status") ProductStatus status,
+            @Param("keyword") String keyword,
+            Pageable pageable);
+
+    /**
      * Customer端：查询ON_SHELF商品，按名称模糊搜索 + 分类（含子分类）筛选
      */
     @Query("""
@@ -121,6 +144,38 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("status") ProductStatus status,
             @Param("keyword") String keyword,
             @Param("categoryIds") Collection<Long> categoryIds,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            Pageable pageable
+    );
+
+    /**
+     * Customer端：按名称/分类名 + 价格区间查询（无分类 ID 过滤）
+     */
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            WHERE p.status = :status
+              AND (:keyword = ''
+                   OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                   OR p.categoryId IN (
+                       SELECT c.id FROM Category c
+                       WHERE LOWER(c.categoryName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                          OR c.parentId IN (
+                              SELECT parent.id FROM Category parent
+                              WHERE LOWER(parent.categoryName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                          )
+                   ))
+              AND EXISTS (
+                  SELECT sku.id FROM ProductSku sku
+                  WHERE sku.product = p
+                    AND sku.status = 'ACTIVE'
+                    AND (:minPrice IS NULL OR sku.price >= :minPrice)
+                    AND (:maxPrice IS NULL OR sku.price <= :maxPrice)
+              )
+            """)
+    Page<Product> searchCustomerProductsByKeywordOrCategoryAndPrice(
+            @Param("status") ProductStatus status,
+            @Param("keyword") String keyword,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice,
             Pageable pageable

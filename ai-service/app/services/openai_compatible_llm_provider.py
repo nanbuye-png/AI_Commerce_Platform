@@ -68,8 +68,12 @@ class OpenAiCompatibleLlmProvider:
                 {
                     "role": "system",
                     "content": (
-                        "Use the following trusted commerce data to answer the user. "
-                        "Do not invent products, prices, or availability.\n"
+                        "你是电商平台的智能购物助手。请严格基于下面的可信商品数据回答用户。\n"
+                        "规则：\n"
+                        "1. 如果商品列表为空，明确告知暂时没有符合条件的商品，并建议用户放宽条件。\n"
+                        "2. 如果有商品，按价格、销量或用户需求推荐最合适的几件，并简述名称、价格和推荐理由。\n"
+                        "3. 不要编造商品、价格、库存或评分。\n"
+                        "4. 回答使用简洁自然的中文。\n"
                         f"{serialized_context}"
                     ),
                 }

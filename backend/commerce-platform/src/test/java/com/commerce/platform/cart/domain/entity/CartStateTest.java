@@ -49,10 +49,10 @@ class CartStateTest {
     }
 
     @Test
-    @DisplayName("删除商品：ACTIVE → REMOVED")
+    @DisplayName("删除商品集合项：activeItems=0")
     void shouldRemoveItem() {
         cart.addItem(1L, 1001L, "商品A", "img.jpg", BigDecimal.valueOf(100), 2);
-        cart.removeItem(1001L);
+        cart.removeItemFromCollection(1001L);
         assertEquals(0, cart.getActiveItems().size());
     }
 
@@ -71,17 +71,18 @@ class CartStateTest {
     }
 
     @Test
-    @DisplayName("删除不存在SKU：抛 CartItemNotFoundException")
-    void shouldThrowWhenRemoveNonExistentSku() {
-        assertThrows(CartItemNotFoundException.class,
-                () -> cart.removeItem(9999L));
+    @DisplayName("删除集合不存在SKU：不抛异常")
+    void shouldRemoveNonExistentSkuSilently() {
+        cart.addItem(1L, 1001L, "商品A", "img.jpg", BigDecimal.valueOf(100), 2);
+        cart.removeItemFromCollection(9999L);
+        assertEquals(1, cart.getActiveItems().size());
     }
 
     @Test
-    @DisplayName("REMOVED商品不能再次操作：抛 CartItemNotFoundException")
+    @DisplayName("删除集合项后不能再次操作：抛 CartItemNotFoundException")
     void shouldNotFindRemovedItem() {
         cart.addItem(1L, 1001L, "商品A", "img.jpg", BigDecimal.valueOf(100), 2);
-        cart.removeItem(1001L);
+        cart.removeItemFromCollection(1001L);
         assertThrows(CartItemNotFoundException.class,
                 () -> cart.updateQuantity(1001L, 5));
     }

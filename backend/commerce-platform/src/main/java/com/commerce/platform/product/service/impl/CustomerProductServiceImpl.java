@@ -70,7 +70,9 @@ public class CustomerProductServiceImpl implements CustomerProductService {
                         pageRequest
                 );
             } else {
-                productPage = productRepository.searchCustomerProductsByPrice(
+                // 无分类 ID 时，keyword 同时匹配商品名与分类名（如"服装"、"电脑"），
+                // 使品类词 + 价格区间也能正确命中商品
+                productPage = productRepository.searchCustomerProductsByKeywordOrCategoryAndPrice(
                         ProductStatus.ON_SHELF,
                         keyword,
                         request.getMinPrice(),
@@ -92,7 +94,8 @@ public class CustomerProductServiceImpl implements CustomerProductService {
                         pageRequest);
             }
         } else if (hasKeyword) {
-            productPage = productRepository.findByStatusAndProductNameContaining(
+            // 同时匹配商品名与分类名，使"服装"、"电脑"等品类词也能命中商品
+            productPage = productRepository.findByStatusAndKeywordOrCategoryName(
                     ProductStatus.ON_SHELF, keyword, pageRequest);
         } else {
             productPage = productRepository.findByStatus(ProductStatus.ON_SHELF, pageRequest);

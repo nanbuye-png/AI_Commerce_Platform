@@ -29,6 +29,12 @@ public class Cart {
     @Column(name = "user_id", nullable = false, updatable = false)
     private Long userId;
 
+    /**
+     * 注意：这里保持单向 @OneToMany + @JoinColumn + orphanRemoval。
+     * 但物理删除 cart_item 时应直接调用 CartItemRepository.deleteByCartIdAndSkuId()，
+     * 不要依赖 orphanRemoval——单向关联移除集合元素时 Hibernate 会先将外键置 NULL，
+     * 而 cart_item.cart_id 是 NOT NULL，会导致删除失败。
+     */
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id")
     @Builder.Default
@@ -93,9 +99,13 @@ public class Cart {
         item.updateQuantity(quantity);
     }
 
-    public void removeItem(Long skuId) {
-        CartItem item = findActiveItem(skuId);
-        item.remove();
+    /**
+     * 从购物车集合中移除指定 SKU 的条目（仅清理内存集合）。
+     * SQL 物理删除由 ApplicationService 通过 CartItemRepository 完成，
+     * 避免单向 orphanRemoval 先将 cart_id 置 NULL 违反 NOT NULL 约束。
+     */
+    public void removeItemFromCollection(Long skuId) {
+        items.removeIf(item -> item.getSkuId().equals(skuId));
     }
 
     public List<CartItem> getActiveItems() {
