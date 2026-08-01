@@ -18,6 +18,7 @@ import AIPage from '../features/ai/AIPage';
 
 // Feature Pages (Sprint 3 - product commerce core)
 import SearchPage from '../features/search/SearchPage';
+import CategoryPage from '../features/category/CategoryPage';
 
 // Feature Pages (Sprint 4 - shopping experience core)
 import CartPage from '../features/cart/pages/CartPage';
@@ -61,7 +62,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'categories',
-        element: <ProductListPage />,
+        element: <CategoryPage />,
       },
       {
         path: 'categories/:categoryId',
