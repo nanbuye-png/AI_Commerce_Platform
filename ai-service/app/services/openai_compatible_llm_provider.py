@@ -127,12 +127,10 @@ class OpenAiCompatibleLlmProvider:
             delta = choice.get("delta")
             if not isinstance(delta, dict):
                 continue
-            # 标准 OpenAI 兼容内容
+            # 仅返回正式回复内容（delta.content）
+            # DeepSeek 等模型把思考过程放在 delta.reasoning_content，
+            # 该内容不应展示给用户，这里统一过滤，只产出最终回答。
             content = delta.get("content")
             if isinstance(content, str) and content:
                 return content
-            # DeepSeek Reasoner 模型的思维链内容（deepseek-reasoner）
-            reasoning = delta.get("reasoning_content")
-            if isinstance(reasoning, str) and reasoning:
-                return reasoning
         return None

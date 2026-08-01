@@ -91,8 +91,8 @@ def test_stream_maps_upstream_http_error_without_exposing_response() -> None:
     assert "secret details" not in str(exc_info.value)
 
 
-def test_stream_parses_deepseek_reasoning_content() -> None:
-    """DeepSeek Reasoner 模型通过 delta.reasoning_content 输出思维链。"""
+def test_stream_filters_deepseek_reasoning_content() -> None:
+    """DeepSeek Reasoner 模型的思维链（reasoning_content）不应展示给用户，应被过滤。"""
 
     def handler(_: httpx.Request) -> httpx.Response:
         body = (
@@ -115,7 +115,8 @@ def test_stream_parses_deepseek_reasoning_content() -> None:
 
     tokens = asyncio.run(run_test())
 
-    assert tokens == ["先分析", "用户意图", "最终答案"]
+    # 过滤思维链后，只保留正式回复内容
+    assert tokens == ["最终答案"]
 
 
 def test_provider_requires_api_key() -> None:
