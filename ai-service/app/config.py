@@ -20,6 +20,13 @@ API_PREFIX = os.getenv("AI_API_PREFIX", "/api/v1")
 # 模型配置
 MODEL_PATH = os.getenv("AI_MODEL_PATH", str(BASE_DIR / "models"))
 DEFAULT_MODEL = os.getenv("AI_DEFAULT_MODEL", "gpt-4o-mini")
+LLM_PROVIDER = os.getenv("AI_LLM_PROVIDER", "mock").strip().lower()
+LLM_BASE_URL = os.getenv("AI_LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+LLM_API_KEY = os.getenv("AI_LLM_API_KEY", "")
+LLM_TIMEOUT_SECONDS = float(os.getenv("AI_LLM_TIMEOUT_SECONDS", "60"))
+LLM_TEMPERATURE = float(os.getenv("AI_LLM_TEMPERATURE", "0.2"))
+LLM_MAX_TOKENS = int(os.getenv("AI_LLM_MAX_TOKENS", "1024"))
+LLM_CONTEXT_MAX_CHARS = int(os.getenv("AI_LLM_CONTEXT_MAX_CHARS", "12000"))
 
 # Internal service authentication. Production deployments must provide this value.
 INTERNAL_API_TOKEN = os.getenv("AI_INTERNAL_API_TOKEN", "")

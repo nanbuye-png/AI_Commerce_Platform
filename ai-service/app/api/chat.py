@@ -9,11 +9,11 @@ from app.core.internal_auth import require_internal_token
 from app.models.chat import ChatStreamRequest
 from app.services.commerce_tool import CommerceTool, CommerceToolError
 from app.services.llm_provider import LlmProvider
-from app.services.mock_llm_provider import MockLlmProvider
+from app.services.llm_provider_factory import create_llm_provider
 from app.services.product_search_intent_parser import ProductSearchIntentParser
 
 router = APIRouter()
-provider: LlmProvider = MockLlmProvider()
+provider: LlmProvider = create_llm_provider()
 intent_parser = ProductSearchIntentParser()
 commerce_tool = CommerceTool()
 

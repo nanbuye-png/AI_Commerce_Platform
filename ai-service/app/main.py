@@ -2,6 +2,8 @@
 AI Service 主入口
 提供 AI 对话、推荐、内容生成等能力
 """
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,11 +11,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import SERVICE_NAME, SERVICE_HOST, SERVICE_PORT, DEBUG, API_PREFIX
 from app.api.health import router as health_router
 from app.api.chat import router as chat_router
+from app.api import chat as chat_api
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        yield
+    finally:
+        close = getattr(chat_api.provider, "aclose", None)
+        if close is not None:
+            await close()
+
 
 app = FastAPI(
     title=SERVICE_NAME,
     version="0.1.0",
     description="AI 智能服务 - 对话、推荐、内容生成",
+    lifespan=lifespan,
 )
 
 # CORS 配置

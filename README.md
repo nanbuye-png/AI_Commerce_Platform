@@ -36,7 +36,7 @@ AI_Commerce_Platform/
 - Customer Web 已通过 Commerce Core AI Gateway 接入 SSE 流式聊天，公开端点只接受 Customer JWT。
 - Commerce Core 与 AI Service 使用共享的内部服务令牌认证，令牌不会下发到浏览器。
 - 自然语言商品搜索已贯通：AI Service 解析关键词、价格和分页意图，通过受保护的 Commerce Tool 查询上架商品，并在聊天流中返回可点击商品结果。
-- AI Service 当前使用确定性的 Mock LLM Provider；真实 LLM 和 RAG 尚未接入。
+- AI Service 支持确定性的 Mock Provider 和可配置的 OpenAI-compatible 流式 Provider；默认仍使用 Mock，RAG 尚未接入。
 
 ## 本地启动
 
@@ -64,6 +64,14 @@ AI_CONNECT_TIMEOUT
 AI_REQUEST_TIMEOUT
 AI_COMMERCE_BASE_URL
 AI_COMMERCE_REQUEST_TIMEOUT
+AI_LLM_PROVIDER
+AI_LLM_BASE_URL
+AI_LLM_API_KEY
+AI_DEFAULT_MODEL
+AI_LLM_TIMEOUT_SECONDS
+AI_LLM_TEMPERATURE
+AI_LLM_MAX_TOKENS
+AI_LLM_CONTEXT_MAX_CHARS
 ```
 
 `AI_INTERNAL_API_TOKEN` 必须使用高熵随机值，并以相同值同时注入 Commerce Core 和 AI Service。生产部署还应在网络层限制 AI Service 的 internal 路由只允许 Commerce Core 访问。
@@ -122,6 +130,17 @@ python -m uvicorn app.main:app --reload
 
 AI Service 默认监听 `8000`，健康检查为 `GET /api/v1/health`。内部流式端点为 `POST /api/v1/internal/ai/chat/stream`，必须携带 `X-Internal-Token`，不应由浏览器直接调用。AI Service 默认通过 `AI_COMMERCE_BASE_URL=http://localhost:8080` 调用 Commerce Core，超时由 `AI_COMMERCE_REQUEST_TIMEOUT` 配置。
 
+LLM 默认使用无需外部密钥的确定性 Mock Provider。要连接 OpenAI 或实现相同 `/chat/completions` 流式协议的服务，显式设置：
+
+```text
+AI_LLM_PROVIDER=openai-compatible
+AI_LLM_BASE_URL=https://api.openai.com/v1
+AI_LLM_API_KEY=<provider-secret>
+AI_DEFAULT_MODEL=gpt-4o-mini
+```
+
+启用 `openai-compatible` 时缺少 API Key 会使 AI Service 启动失败。Provider 密钥只注入 AI Service，不应进入 Commerce Core、任何 Web 构建变量或版本库。上游响应会被解析为平台自己的 SSE 契约，商品搜索上下文按 `AI_LLM_CONTEXT_MAX_CHARS` 截断，客户端关闭时共享 HTTP 连接池会随应用生命周期释放。
+
 ## 质量门禁
 
 GitHub Actions 会并行验证 Commerce Core、三套前端和 AI Service。本地可运行等价命令：
@@ -162,6 +181,6 @@ Customer Web 使用带 Bearer JWT 的 `fetch POST` 读取并增量渲染响应�
 
 ## 下一阶段
 
-- 接入可配置的真实 LLM Provider，并保留 Mock Provider 用于契约测试；
-- 增加 RAG、Commerce Tool 细粒度授权、审计、评测和流式链路可观测性；
-- 将 Commerce 业务事件正式接入 OutboxService，并处理前端入口包拆分。
+- 建立可复现的容器化部署、密钥注入、readiness 和跨服务 SSE smoke test；
+- 增加跨服务 trace、TTFT/错误率/成本指标和离线质量评测基线，再推进 RAG；
+- 将 Commerce 关键业务事件正式接入 OutboxService，并处理三套前端入口包拆分。
