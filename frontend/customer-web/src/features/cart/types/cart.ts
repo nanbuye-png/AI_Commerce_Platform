@@ -4,6 +4,10 @@
 
 /** 购物车单品 */
 export interface CartItem {
+  /** 后端购物车条目 ID（结算时使用） */
+  readonly backendId?: number;
+  /** 后端 SKU ID（增删改时使用） */
+  readonly skuId?: number;
   readonly productId: string;
   readonly name: string;
   readonly thumbnail: string;

@@ -5,6 +5,8 @@ import type { CartItem, CartSummary } from '../types/cart';
 interface CartState {
   items: CartItem[];
 
+  /** 从后端同步购物车商品 */
+  setItems: (items: CartItem[]) => void;
   /** 添加商品到购物车 */
   addItem: (item: Omit<CartItem, 'checked' | 'maxQuantity'>) => void;
   /** 删除商品 */
@@ -29,6 +31,10 @@ const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+
+      setItems: (newItems) => {
+        set({ items: newItems });
+      },
 
       addItem: (newItem) => {
         set((state) => {

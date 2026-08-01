@@ -1,11 +1,80 @@
-import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import SearchBar from './components/SearchBar';
 import ProductGrid from '../product/components/ProductGrid';
+import ProductSkeleton from '../product/components/ProductSkeleton';
+import { productService, type ProductView } from '../../services/product';
+import type { Product } from '../product/types/product';
+
+/** 将 ProductView 映射为 ProductGrid 期望的 Product 类型 */
+function toProduct(p: ProductView): Product {
+  return {
+    id: String(p.id),
+    name: p.name,
+    description: p.description,
+    brand: p.brand,
+    categoryId: p.categoryName ?? '',
+    categoryName: p.categoryName,
+    images: p.images.map((url, idx) => ({
+      id: `${p.id}-img-${idx}`,
+      url,
+      alt: p.name,
+      isPrimary: idx === 0,
+    })),
+    thumbnail: p.thumbnail,
+    price: p.price,
+    originalPrice: p.originalPrice,
+    currency: 'CNY',
+    rating: p.rating,
+    reviewCount: p.reviewCount,
+    salesCount: p.salesCount,
+    stock: p.stock,
+    status: 'ACTIVE',
+    createdAt: '',
+    updatedAt: '',
+  };
+}
 
 const SearchPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const keyword = searchParams.get('q') || '';
+  const [products, setProducts] = useState<Product[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!keyword) {
+      setProducts([]);
+      setTotal(0);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setProducts([]);
+
+    productService
+      .listProducts({ page: 1, size: 20, keyword })
+      .then((res) => {
+        if (!cancelled) {
+          setProducts(res.items.map(toProduct));
+          setTotal(res.total);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) console.error('搜索失败:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [keyword]);
+
+  const hotWords = ['手机', '电脑', '耳机', '手表', '书包', '运动鞋'];
 
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 1200, margin: '0 auto' }}>
@@ -33,46 +102,25 @@ const SearchPage: React.FC = () => {
               搜索：{keyword}
             </h1>
             <span style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-              找到 0 件商品
+              找到 {total} 件商品
             </span>
           </div>
 
-          {/* Sort Options */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 'var(--spacing-sm)',
-              marginBottom: 'var(--spacing-lg)',
-              flexWrap: 'wrap',
-            }}
-          >
-            {[
-              { label: '综合', value: 'default' },
-              { label: '销量', value: 'sales' },
-              { label: '价格 ↑', value: 'price_asc' },
-              { label: '价格 ↓', value: 'price_desc' },
-              { label: '新品', value: 'newest' },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg-primary)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'all var(--transition-fast)',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Results */}
-          <ProductGrid products={[]} loading={false} />
+          {loading ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: 'var(--spacing-md)',
+              }}
+            >
+              {Array.from({ length: 6 }, (_, i) => (
+                <ProductSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <ProductGrid products={products} loading={false} />
+          )}
         </>
       ) : (
         /* Empty search state */
@@ -95,9 +143,10 @@ const SearchPage: React.FC = () => {
               热门搜索
             </h3>
             <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'center', flexWrap: 'wrap' }}>
-              {['手机', '电脑', '耳机', '手表', '书包', '运动鞋'].map((word) => (
+              {hotWords.map((word) => (
                 <span
                   key={word}
+                  onClick={() => navigate(`/search?q=${encodeURIComponent(word)}`)}
                   style={{
                     padding: '4px 12px',
                     borderRadius: 'var(--radius-full)',

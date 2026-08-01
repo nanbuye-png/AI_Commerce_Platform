@@ -4,6 +4,8 @@ import ProductGallery from './components/ProductGallery';
 import ProductPrice from './components/ProductPrice';
 import ProductSkeleton from './components/ProductSkeleton';
 import { productService, type ProductView } from '../../services/product';
+import { cartService } from '../../services/cart';
+import { getToken } from '../../utils/token';
 
 const ProductDetailPage: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
@@ -11,6 +13,39 @@ const ProductDetailPage: React.FC = () => {
   const [product, setProduct] = useState<ProductView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    if (!getToken()) {
+      navigate('/login');
+      return;
+    }
+    const sku = product.skus?.[0];
+    if (!sku) {
+      alert('该商品暂无可购买规格');
+      return;
+    }
+    setAdding(true);
+    try {
+      await cartService.addItem({
+        skuId: sku.id,
+        productId: product.id,
+        productName: product.name,
+        productImage: product.thumbnail || undefined,
+        price: sku.price || product.price,
+        quantity: 1,
+      });
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } catch (err) {
+      console.error('加入购物车失败:', err);
+      alert('加入购物车失败，请稍后重试');
+    } finally {
+      setAdding(false);
+    }
+  };
 
   useEffect(() => {
     if (!productId) {
@@ -167,6 +202,8 @@ const ProductDetailPage: React.FC = () => {
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
             <button
+              onClick={handleAddToCart}
+              disabled={adding}
               style={{
                 flex: 1,
                 height: 48,
@@ -176,10 +213,10 @@ const ProductDetailPage: React.FC = () => {
                 fontSize: '16px',
                 fontWeight: 500,
                 border: 'none',
-                cursor: 'pointer',
+                cursor: adding ? 'wait' : 'pointer',
               }}
             >
-              加入购物车
+              {added ? '已加入 ✓' : '加入购物车'}
             </button>
             <button
               style={{

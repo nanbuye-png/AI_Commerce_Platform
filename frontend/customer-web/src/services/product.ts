@@ -70,6 +70,14 @@ export interface BackendProductDetail {
   }[];
 }
 
+/** SKU 视图（供加购/下单使用） */
+export interface ProductSkuView {
+  id: number;
+  skuCode?: string;
+  price: number;
+  originalPrice?: number;
+}
+
 /** 适配后的前端统一商品结构（供 ProductCard/ProductDetailPage 使用） */
 export interface ProductView {
   id: number;
@@ -86,6 +94,7 @@ export interface ProductView {
   reviewCount: number;
   stock: number;
   specs?: { name: string; options: { name: string; value: string }[] }[];
+  skus?: ProductSkuView[];
 }
 
 /**
@@ -160,22 +169,32 @@ function toDetailView(p: BackendProductDetail): ProductView {
     reviewCount: 0,
     stock,
     specs,
+    skus: skus.map((s) => ({
+      id: s.id,
+      skuCode: s.skuCode,
+      price: Number(s.price) || 0,
+      originalPrice: s.originalPrice ? Number(s.originalPrice) : undefined,
+    })),
   };
 }
 
 export const productService = {
   /**
    * 商品列表
-   * GET /api/products?page=1&size=20
+   * GET /api/products?page=1&size=20&keyword=xxx
    */
-  async listProducts(params: { page?: number; size?: number } = {}): Promise<{
+  async listProducts(params: { page?: number; size?: number; keyword?: string } = {}): Promise<{
     items: ProductView[];
     total: number;
     page: number;
     pages: number;
   }> {
     const res = await request.get<ApiResult<PageResult<BackendProductCard>>, ApiResult<PageResult<BackendProductCard>>>('/api/products', {
-      params: { page: params.page ?? 1, size: params.size ?? 20 },
+      params: {
+        page: params.page ?? 1,
+        size: params.size ?? 20,
+        ...(params.keyword ? { keyword: params.keyword } : {}),
+      },
     });
     const data = res.data;
     return {

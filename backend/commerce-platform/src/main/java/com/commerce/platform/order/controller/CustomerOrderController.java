@@ -1,12 +1,16 @@
 package com.commerce.platform.order.controller;
 
+import com.commerce.platform.common.entity.PageResult;
 import com.commerce.platform.common.entity.Result;
 import com.commerce.platform.order.dto.request.CreateOrderRequest;
+import com.commerce.platform.order.dto.request.OrderQueryRequest;
 import com.commerce.platform.order.dto.response.CreateOrderResponse;
+import com.commerce.platform.order.dto.response.OrderVO;
 import com.commerce.platform.order.service.OrderApplicationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -40,6 +44,29 @@ public class CustomerOrderController {
 
         log.info("订单创建完成 - orderNo={}", response.getOrderNo());
         return Result.success(response);
+    }
+
+    /**
+     * 查询我的订单列表
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public Result<PageResult<OrderVO>> myOrders(Authentication authentication,
+                                                 OrderQueryRequest query) {
+        Long customerId = getCustomerId(authentication);
+        Page<OrderVO> page = orderApplicationService.getMyOrders(customerId, query);
+        return Result.success(PageResult.of(page));
+    }
+
+    /**
+     * 查询订单详情
+     */
+    @GetMapping("/{orderNo}")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public Result<OrderVO> orderDetail(Authentication authentication,
+                                       @PathVariable String orderNo) {
+        Long customerId = getCustomerId(authentication);
+        return Result.success(orderApplicationService.getOrderDetail(customerId, orderNo));
     }
 
     /**

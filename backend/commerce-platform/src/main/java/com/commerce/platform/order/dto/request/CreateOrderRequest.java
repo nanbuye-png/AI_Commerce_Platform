@@ -1,6 +1,5 @@
 package com.commerce.platform.order.dto.request;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -8,17 +7,22 @@ import java.util.List;
 
 /**
  * 创建订单请求
+ * <p>
+ * buyerId / merchantId / storeId 不再要求前端传递：
+ * buyerId 从 JWT 获取，merchantId / storeId 由后端根据 SKU 推导。
+ * </p>
  */
 @Data
 public class CreateOrderRequest {
 
-    @NotNull(message = "买家ID不能为空")
-    private Long buyerId;
-
-    @NotNull(message = "商家ID不能为空")
+    /**
+     * 商家 ID（可选，后端根据 SKU 推导）
+     */
     private Long merchantId;
 
-    @NotNull(message = "店铺ID不能为空")
+    /**
+     * 店铺 ID（可选，后端根据 SKU 推导）
+     */
     private Long storeId;
 
     private String remark;

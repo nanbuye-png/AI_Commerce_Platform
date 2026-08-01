@@ -3,30 +3,90 @@ import { useNavigate } from 'react-router-dom';
 import useCartStore from '../cart/store/cartStore';
 import AddressSelector from './components/AddressSelector';
 import PaymentSelector from './components/PaymentSelector';
+import { cartService } from '../../services/cart';
+import { getToken } from '../../utils/token';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
-  const { items, getSummary } = useCartStore();
+  const { items, getSummary, clearChecked, setItems } = useCartStore();
   const summary = getSummary();
   const [selectedAddr, setSelectedAddr] = useState('1');
   const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = () => {
-    setSubmitting(true);
-    // Mock submission
-    setTimeout(() => {
-      setSubmitting(false);
-      void navigate('/orders', { replace: true });
-    }, 1500);
-  };
+  const [error, setError] = useState<string | null>(null);
 
   const checkedItems = items.filter((i) => i.checked);
+
+  const handleSubmit = async () => {
+    if (!getToken()) {
+      navigate('/login');
+      return;
+    }
+
+    const cartItemIds = checkedItems
+      .map((i) => i.backendId)
+      .filter((id): id is number => typeof id === 'number' && id > 0);
+
+    if (cartItemIds.length === 0) {
+      setError('请先选择要结算的商品');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const checkoutNo = await cartService.checkout(cartItemIds, Number(selectedAddr), 'BALANCE');
+      console.info('结算单号:', checkoutNo);
+      clearChecked();
+      // 重新拉取后端购物车（已结算商品移除）
+      try {
+        const cart = await cartService.getCart();
+        setItems(
+          cart.items.map((ci) => ({
+            backendId: ci.id,
+            skuId: ci.skuId,
+            productId: String(ci.productId),
+            name: ci.productName,
+            thumbnail: ci.productImage ?? '',
+            price: Number(ci.price) || 0,
+            quantity: ci.quantity,
+            stock: 99,
+            checked: ci.selected,
+            maxQuantity: 99,
+          })),
+        );
+      } catch {
+        // ignore
+      }
+      navigate('/orders', { replace: true });
+    } catch (err: unknown) {
+      console.error('提交订单失败:', err);
+      setError('提交订单失败，请稍后重试');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 800, margin: '0 auto' }}>
       <h1 style={{ fontSize: 'var(--font-size-h1)', fontWeight: 600, marginBottom: 'var(--spacing-xl)' }}>
         确认订单
       </h1>
+
+      {error && (
+        <div
+          style={{
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            background: 'rgba(255, 59, 48, 0.08)',
+            color: '#FF3B30',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: 'var(--spacing-md)',
+            fontSize: '14px',
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {/* Address */}
       <div style={{ marginBottom: 'var(--spacing-xl)' }}>

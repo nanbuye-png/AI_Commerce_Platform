@@ -1,13 +1,67 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { CartItem as CartItemType } from '../types/cart';
 import useCartStore from '../store/cartStore';
+import { cartService } from '../../../services/cart';
 
 interface CartItemProps {
   item: CartItemType;
 }
 
 const CartItem: React.FC<CartItemProps> = ({ item }) => {
-  const { updateQuantity, removeItem, toggleCheck } = useCartStore();
+  const { toggleCheck, setItems } = useCartStore();
+  const [syncing, setSyncing] = useState(false);
+
+  const syncCart = async () => {
+    try {
+      const cart = await cartService.getCart();
+      setItems(
+        cart.items.map((ci) => ({
+          backendId: ci.id,
+          skuId: ci.skuId,
+          productId: String(ci.productId),
+          name: ci.productName,
+          thumbnail: ci.productImage ?? '',
+          price: Number(ci.price) || 0,
+          quantity: ci.quantity,
+          stock: 99,
+          checked: ci.selected,
+          maxQuantity: 99,
+        })),
+      );
+    } catch {
+      // 同步失败保持本地状态，不阻塞交互
+    }
+  };
+
+  const handleToggle = async () => {
+    toggleCheck(item.productId, item.specInfo);
+  };
+
+  const handleUpdateQuantity = async (next: number) => {
+    if (!item.skuId) return;
+    setSyncing(true);
+    try {
+      await cartService.updateQuantity(item.skuId, next);
+      await syncCart();
+    } catch {
+      alert('修改数量失败，请稍后重试');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!item.skuId) return;
+    setSyncing(true);
+    try {
+      await cartService.removeItem(item.skuId);
+      await syncCart();
+    } catch {
+      alert('删除失败，请稍后重试');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div
@@ -24,7 +78,7 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
     >
       {/* Checkbox */}
       <div
-        onClick={() => toggleCheck(item.productId, item.specInfo)}
+        onClick={handleToggle}
         style={{
           width: 22,
           height: 22,
@@ -92,16 +146,19 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
           {/* Quantity Control */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
             <button
-              onClick={() => updateQuantity(item.productId, item.quantity - 1, item.specInfo)}
-              disabled={item.quantity <= 1}
+              onClick={() => {
+                const next = item.quantity - 1;
+                if (next >= 1) handleUpdateQuantity(next);
+              }}
+              disabled={item.quantity <= 1 || syncing}
               style={{
                 width: 28,
                 height: 28,
                 border: '1px solid var(--color-border)',
                 borderRadius: '4px 0 0 4px',
                 background: 'var(--color-bg-secondary)',
-                cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
-                opacity: item.quantity <= 1 ? 0.5 : 1,
+                cursor: item.quantity <= 1 || syncing ? 'not-allowed' : 'pointer',
+                opacity: item.quantity <= 1 || syncing ? 0.5 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -126,16 +183,16 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
               {item.quantity}
             </span>
             <button
-              onClick={() => updateQuantity(item.productId, item.quantity + 1, item.specInfo)}
-              disabled={item.quantity >= item.maxQuantity}
+              onClick={() => handleUpdateQuantity(item.quantity + 1)}
+              disabled={item.quantity >= item.maxQuantity || syncing}
               style={{
                 width: 28,
                 height: 28,
                 border: '1px solid var(--color-border)',
                 borderRadius: '0 4px 4px 0',
                 background: 'var(--color-bg-secondary)',
-                cursor: item.quantity >= item.maxQuantity ? 'not-allowed' : 'pointer',
-                opacity: item.quantity >= item.maxQuantity ? 0.5 : 1,
+                cursor: item.quantity >= item.maxQuantity || syncing ? 'not-allowed' : 'pointer',
+                opacity: item.quantity >= item.maxQuantity || syncing ? 0.5 : 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -150,14 +207,15 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
 
       {/* Remove */}
       <button
-        onClick={() => removeItem(item.productId, item.specInfo)}
+        onClick={handleRemove}
+        disabled={syncing}
         style={{
           padding: '4px 8px',
           fontSize: '12px',
           color: 'var(--color-text-tertiary)',
           background: 'none',
           border: 'none',
-          cursor: 'pointer',
+          cursor: syncing ? 'not-allowed' : 'pointer',
           whiteSpace: 'nowrap',
         }}
       >
