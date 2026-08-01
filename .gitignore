@@ -52,3 +52,6 @@ harness-progress.txt
 harness-tasks.json
 harness-tasks.json.bak
 harness-tasks.json.tmp
+
+# Uploaded files
+uploads/
