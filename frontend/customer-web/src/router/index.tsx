@@ -69,7 +69,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'ai',
-        element: <AIPage />,
+        element: (
+          <ProtectedRoute>
+            <AIPage />
+          </ProtectedRoute>
+        ),
       },
 
       // Protected routes (require login)

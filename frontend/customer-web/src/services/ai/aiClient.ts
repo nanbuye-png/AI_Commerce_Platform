@@ -1,35 +1,118 @@
-/* ============================================================
-   AI Client — Stub Implementation
-   Implements AIService interface. No actual LLM calls.
-   ============================================================ */
+import type {
+  AIRecommendation,
+  AISearchIntent,
+  AIService,
+  AISession,
+  AIStreamHandlers,
+  AIStreamResult,
+} from './aiTypes';
+import { getToken, removeToken } from '../../utils/token';
 
-import type { AIService, AIResponse, AISession, AISearchIntent, AIRecommendation } from './aiTypes';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
 
-/**
- * AI 客户端 — 桩实现
- *
- * TODO: 替换为实际 AI Service 调用
- * - 替换 sendMessage 为真实 API 调用
- * - 实现流式响应 (SSE / WebSocket)
- * - 添加错误重试逻辑
- */
-export const aiClient: AIService = {
-  async sendMessage(_sessionId: string, _message: string): Promise<AIResponse> {
-    // Stub: return empty response
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return {
-      message: {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: '您好！我是 AI 购物助手，可以帮您推荐商品、比较价格、提供购买建议。请问有什么可以帮您的吗？',
-        createdAt: new Date().toISOString(),
-      },
-      suggestions: [
-        '推荐几款热销手机',
-        '帮我挑选礼物',
-        '有什么优惠活动吗',
-      ],
+interface TokenEventData {
+  type: 'token';
+  content: string;
+}
+
+interface DoneEventData {
+  conversation_id: string;
+  message_id: string;
+}
+
+function isTokenEventData(value: unknown): value is TokenEventData {
+  if (!value || typeof value !== 'object') return false;
+  const data = value as Record<string, unknown>;
+  return data.type === 'token' && typeof data.content === 'string';
+}
+
+function isDoneEventData(value: unknown): value is DoneEventData {
+  if (!value || typeof value !== 'object') return false;
+  const data = value as Record<string, unknown>;
+  return typeof data.conversation_id === 'string' && typeof data.message_id === 'string';
+}
+
+function dispatchEventFrame(frame: string, handlers: AIStreamHandlers): void {
+  let eventName = 'message';
+  const dataLines: string[] = [];
+
+  for (const line of frame.split('\n')) {
+    if (line.startsWith('event:')) eventName = line.slice(6).trim();
+    if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+  }
+
+  if (dataLines.length === 0) return;
+
+  let data: unknown;
+  try {
+    data = JSON.parse(dataLines.join('\n'));
+  } catch {
+    throw new Error('AI 服务返回了无效的流式数据');
+  }
+
+  if (eventName === 'message' && isTokenEventData(data)) {
+    handlers.onToken(data.content);
+    return;
+  }
+  if (eventName === 'done' && isDoneEventData(data)) {
+    const result: AIStreamResult = {
+      conversationId: data.conversation_id,
+      messageId: data.message_id,
     };
+    handlers.onDone(result);
+  }
+}
+
+async function readEventStream(response: Response, handlers: AIStreamHandlers): Promise<void> {
+  if (!response.body) throw new Error('当前浏览器不支持流式响应');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer = `${buffer}${decoder.decode(value, { stream: !done })}`.replace(/\r\n/g, '\n');
+
+    let boundary = buffer.indexOf('\n\n');
+    while (boundary >= 0) {
+      dispatchEventFrame(buffer.slice(0, boundary), handlers);
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf('\n\n');
+    }
+
+    if (done) break;
+  }
+
+  if (buffer.trim()) dispatchEventFrame(buffer, handlers);
+}
+
+export const aiClient: AIService = {
+  async sendMessage(sessionId, message, handlers, signal): Promise<void> {
+    const token = getToken();
+    if (!token) throw new Error('请先登录后使用 AI 购物助手');
+
+    const response = await fetch(`${API_BASE_URL}/api/customer/ai/chat/stream`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify({ message, conversation_id: sessionId }),
+      signal,
+    });
+
+    if (response.status === 401) {
+      removeToken();
+      window.location.assign('/login');
+      throw new Error('登录状态已失效，请重新登录');
+    }
+    if (!response.ok) {
+      throw new Error(response.status === 503 ? 'AI 服务暂时不可用，请稍后重试' : 'AI 请求失败，请稍后重试');
+    }
+
+    await readEventStream(response, handlers);
   },
 
   async createSession(context): Promise<AISession> {

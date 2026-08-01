@@ -10,9 +10,12 @@ interface AIState {
 
   initializeSession: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
+  cancelStream: () => void;
   clearConversation: () => void;
   setError: (error: string | null) => void;
 }
+
+let activeController: AbortController | null = null;
 
 const useAIStore = create<AIState>((set, get) => ({
   messages: [],
@@ -34,8 +37,15 @@ const useAIStore = create<AIState>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { sessionId, messages } = get();
-    if (!sessionId) return;
+    const { loading, messages } = get();
+    if (loading) return;
+
+    let { sessionId } = get();
+    if (!sessionId) {
+      const session = await aiClient.createSession();
+      sessionId = session.id;
+      set({ sessionId });
+    }
 
     const userMessage: AIMessage = {
       id: crypto.randomUUID(),
@@ -43,22 +53,71 @@ const useAIStore = create<AIState>((set, get) => ({
       content,
       createdAt: new Date().toISOString(),
     };
+    const assistantMessageId = crypto.randomUUID();
+    const assistantMessage: AIMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      createdAt: new Date().toISOString(),
+    };
 
-    set({ messages: [...messages, userMessage], loading: true, error: null });
+    const controller = new AbortController();
+    activeController = controller;
+    set({ messages: [...messages, userMessage, assistantMessage], loading: true, error: null });
 
     try {
-      const response = await aiClient.sendMessage(sessionId, content);
-      set((state) => ({
-        messages: [...state.messages, response.message],
-        loading: false,
-      }));
-    } catch {
-      set({ loading: false, error: 'AI 响应失败，请稍后重试' });
+      await aiClient.sendMessage(
+        sessionId,
+        content,
+        {
+          onToken: (token) => {
+            set((state) => ({
+              messages: state.messages.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content: message.content + token }
+                  : message,
+              ),
+            }));
+          },
+          onDone: ({ conversationId, messageId }) => {
+            set((state) => ({
+              sessionId: conversationId,
+              messages: state.messages.map((message) =>
+                message.id === assistantMessageId ? { ...message, id: messageId } : message,
+              ),
+            }));
+          },
+        },
+        controller.signal,
+      );
+      set({ loading: false });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        set({ loading: false });
+      } else {
+        set((state) => ({
+          messages: state.messages.filter(
+            (message) => message.id !== assistantMessageId || message.content.length > 0,
+          ),
+          loading: false,
+          error: error instanceof Error ? error.message : 'AI 响应失败，请稍后重试',
+        }));
+      }
+    } finally {
+      if (activeController === controller) activeController = null;
     }
   },
 
+  cancelStream: () => {
+    activeController?.abort();
+    activeController = null;
+    set({ loading: false });
+  },
+
   clearConversation: () => {
-    set({ messages: [], error: null });
+    activeController?.abort();
+    activeController = null;
+    set({ messages: [], sessionId: crypto.randomUUID(), loading: false, error: null });
   },
 
   setError: (error) => set({ error }),

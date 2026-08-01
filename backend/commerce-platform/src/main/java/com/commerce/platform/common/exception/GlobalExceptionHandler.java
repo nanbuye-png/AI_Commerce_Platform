@@ -1,5 +1,6 @@
 package com.commerce.platform.common.exception;
 
+import com.commerce.platform.ai.exception.AiGatewayException;
 import com.commerce.platform.common.entity.Result;
 import com.commerce.platform.order.exception.AdminPermissionException;
 import com.commerce.platform.order.exception.InvalidOrderStatusException;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -86,6 +88,24 @@ public class GlobalExceptionHandler {
     }
 
     // ---- Common Exceptions ----
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleValidation(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(error -> error.getField() + " " + error.getDefaultMessage())
+                .orElse("Invalid request");
+        log.warn("Request validation failed: {}", message);
+        return Result.error(400, message);
+    }
+
+    @ExceptionHandler(AiGatewayException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public Result<Void> handleAiGateway(AiGatewayException e) {
+        log.warn("AI Gateway failure: {}", e.getMessage());
+        return Result.error(502, "AI Service is unavailable");
+    }
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)

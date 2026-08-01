@@ -21,6 +21,9 @@ API_PREFIX = os.getenv("AI_API_PREFIX", "/api/v1")
 MODEL_PATH = os.getenv("AI_MODEL_PATH", str(BASE_DIR / "models"))
 DEFAULT_MODEL = os.getenv("AI_DEFAULT_MODEL", "gpt-4o-mini")
 
+# Internal service authentication. Production deployments must provide this value.
+INTERNAL_API_TOKEN = os.getenv("AI_INTERNAL_API_TOKEN", "")
+
 # 日志配置
 LOG_LEVEL = os.getenv("AI_LOG_LEVEL", "INFO")
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

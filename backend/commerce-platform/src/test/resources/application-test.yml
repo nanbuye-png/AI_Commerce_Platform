@@ -25,6 +25,10 @@ jwt:
   merchant-web-secret: test-only-merchant-web-secret-at-least-32-characters
   admin-web-secret: test-only-admin-web-secret-at-least-32-characters
 
+app:
+  ai:
+    internal-token: test-only-internal-ai-token
+
 logging:
   level:
     root: WARN

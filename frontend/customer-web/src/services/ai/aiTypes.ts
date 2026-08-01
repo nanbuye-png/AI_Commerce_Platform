@@ -1,6 +1,5 @@
 /* ============================================================
    AI Service — Type Definitions
-   Interface Only — No actual LLM calls
    ============================================================ */
 
 /** AI 对话角色 */
@@ -73,10 +72,27 @@ export interface AIResponse {
   readonly suggestions?: string[];
 }
 
+/** AI 流式响应完成信息 */
+export interface AIStreamResult {
+  readonly conversationId: string;
+  readonly messageId: string;
+}
+
+/** AI 流式响应回调 */
+export interface AIStreamHandlers {
+  readonly onToken: (content: string) => void;
+  readonly onDone: (result: AIStreamResult) => void;
+}
+
 /** AI 服务接口 */
 export interface AIService {
   /** 发送聊天消息 */
-  sendMessage(sessionId: string, message: string): Promise<AIResponse>;
+  sendMessage(
+    sessionId: string,
+    message: string,
+    handlers: AIStreamHandlers,
+    signal?: AbortSignal,
+  ): Promise<void>;
   /** 创建新会话 */
   createSession(context?: AISession['context']): Promise<AISession>;
   /** 获取会话历史 */

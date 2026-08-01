@@ -9,7 +9,7 @@ interface ChatPanelProps {
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placeholder = '输入你想了解的商品信息...' }) => {
-  const { messages, loading, sendMessage, initializeSession } = useAIStore();
+  const { messages, loading, error, sendMessage, cancelStream, initializeSession } = useAIStore();
   const [input, setInput] = React.useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -159,6 +159,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placehol
           </div>
         )}
 
+        {error && (
+          <p role="alert" style={{ color: 'var(--color-error)', fontSize: 13, padding: '8px 0' }}>
+            {error}
+          </p>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -206,16 +212,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placehol
             }}
           />
           <button
-            onClick={() => handleSend(input)}
-            disabled={!input.trim() || loading}
+            onClick={() => (loading ? cancelStream() : handleSend(input))}
+            disabled={!loading && !input.trim()}
+            aria-label={loading ? '停止生成' : '发送消息'}
+            title={loading ? '停止生成' : '发送消息'}
             style={{
               width: 36,
               height: 36,
               borderRadius: '50%',
-              background: input.trim() && !loading ? 'var(--color-accent)' : 'var(--color-border)',
+              background: loading || input.trim() ? 'var(--color-accent)' : 'var(--color-border)',
               color: '#fff',
               border: 'none',
-              cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
+              cursor: loading || input.trim() ? 'pointer' : 'not-allowed',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -223,7 +231,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placehol
               transition: 'background var(--transition-fast)',
             }}
           >
-            ↑
+            {loading ? '■' : '↑'}
           </button>
         </div>
       </div>
