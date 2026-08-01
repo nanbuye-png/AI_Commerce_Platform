@@ -35,7 +35,8 @@ AI_Commerce_Platform/
 - 三套前端均启用 typed ESLint，并通过生产构建。
 - Customer Web 已通过 Commerce Core AI Gateway 接入 SSE 流式聊天，公开端点只接受 Customer JWT。
 - Commerce Core 与 AI Service 使用共享的内部服务令牌认证，令牌不会下发到浏览器。
-- AI Service 当前使用确定性的 Mock LLM Provider；真实 LLM、RAG 和 Commerce Tool 尚未接入。
+- 自然语言商品搜索已贯通：AI Service 解析关键词、价格和分页意图，通过受保护的 Commerce Tool 查询上架商品，并在聊天流中返回可点击商品结果。
+- AI Service 当前使用确定性的 Mock LLM Provider；真实 LLM 和 RAG 尚未接入。
 
 ## 本地启动
 
@@ -61,6 +62,8 @@ AI_SERVICE_BASE_URL
 AI_INTERNAL_API_TOKEN
 AI_CONNECT_TIMEOUT
 AI_REQUEST_TIMEOUT
+AI_COMMERCE_BASE_URL
+AI_COMMERCE_REQUEST_TIMEOUT
 ```
 
 `AI_INTERNAL_API_TOKEN` 必须使用高熵随机值，并以相同值同时注入 Commerce Core 和 AI Service。生产部署还应在网络层限制 AI Service 的 internal 路由只允许 Commerce Core 访问。
@@ -117,7 +120,7 @@ python -m pip install -r requirements.txt -r requirements-dev.txt
 python -m uvicorn app.main:app --reload
 ```
 
-AI Service 默认监听 `8000`，健康检查为 `GET /api/v1/health`。内部流式端点为 `POST /api/v1/internal/ai/chat/stream`，必须携带 `X-Internal-Token`，不应由浏览器直接调用。
+AI Service 默认监听 `8000`，健康检查为 `GET /api/v1/health`。内部流式端点为 `POST /api/v1/internal/ai/chat/stream`，必须携带 `X-Internal-Token`，不应由浏览器直接调用。AI Service 默认通过 `AI_COMMERCE_BASE_URL=http://localhost:8080` 调用 Commerce Core，超时由 `AI_COMMERCE_REQUEST_TIMEOUT` 配置。
 
 ## 质量门禁
 
@@ -142,12 +145,23 @@ python -m pytest -c ai-service/pytest.ini ai-service/tests
 - **用户注册**: `POST /api/auth/register`
 - **用户登录**: `POST /api/auth/login`
 - **Customer AI 流式聊天**: `POST /api/customer/ai/chat/stream`
+- **AI Service 内部聊天**: `POST /api/v1/internal/ai/chat/stream`
+- **Commerce Core 内部商品搜索**: `POST /api/internal/ai/products/search`
 
-AI 流式聊天使用 `text/event-stream`：`message` 事件携带增量 token，`done` 事件返回 `conversation_id` 和 `message_id`。Customer Web 使用带 Bearer JWT 的 `fetch POST` 读取并增量渲染响应，也支持中止当前生成。
+两个内部端点都要求相同的 `X-Internal-Token`。商品搜索仅返回上架商品，并支持 `keyword`、`minPrice`、`maxPrice`、`page` 和 `size`；令牌校验采用常量时间比较。
+
+AI 流式聊天使用 `text/event-stream`：
+
+- `meta` + `product_search`：返回结构化查询、商品列表和总数；
+- `meta` + `product_search_error`：Commerce Tool 不可用时的可恢复提示，后续文本流仍会继续；
+- `message`：携带增量 token；
+- `done`：返回 `conversation_id` 和 `message_id`；
+- `error`：流开始后 Provider 失败，流随即终止且不会发送 `done`。
+
+Customer Web 使用带 Bearer JWT 的 `fetch POST` 读取并增量渲染响应，展示商品卡片、搜索降级和生成错误，也支持中止当前生成。
 
 ## 下一阶段
 
-- 以自然语言商品搜索作为首个 AI 垂直切片；
 - 接入可配置的真实 LLM Provider，并保留 Mock Provider 用于契约测试；
-- 增加 RAG、Commerce Tool 授权、审计、评测和流式链路可观测性；
+- 增加 RAG、Commerce Tool 细粒度授权、审计、评测和流式链路可观测性；
 - 将 Commerce 业务事件正式接入 OutboxService，并处理前端入口包拆分。

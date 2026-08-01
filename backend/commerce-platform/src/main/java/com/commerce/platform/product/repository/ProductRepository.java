@@ -5,9 +5,12 @@ import com.commerce.platform.product.enums.ProductStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.math.BigDecimal;
 
 /**
  * 商品 SPU Repository
@@ -57,4 +60,26 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      * Customer端：查询所有ON_SHELF商品
      */
     Page<Product> findByStatus(ProductStatus status, Pageable pageable);
+
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.status = :status
+              AND (:keyword IS NULL OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (:categoryId IS NULL OR p.categoryId = :categoryId)
+              AND EXISTS (
+                  SELECT sku.id FROM ProductSku sku
+                  WHERE sku.product = p
+                    AND sku.status = 'ACTIVE'
+                    AND (:minPrice IS NULL OR sku.price >= :minPrice)
+                    AND (:maxPrice IS NULL OR sku.price <= :maxPrice)
+              )
+            """)
+    Page<Product> searchCustomerProductsByPrice(
+            @Param("status") ProductStatus status,
+            @Param("keyword") String keyword,
+            @Param("categoryId") Long categoryId,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            Pageable pageable
+    );
 }

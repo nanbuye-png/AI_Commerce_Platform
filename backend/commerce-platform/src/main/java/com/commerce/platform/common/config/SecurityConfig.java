@@ -1,8 +1,10 @@
 package com.commerce.platform.common.config;
 
 import com.commerce.platform.common.security.JwtAuthenticationFilter;
+import com.commerce.platform.common.security.InternalTokenAuthenticationFilter;
 import com.commerce.platform.common.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -45,7 +47,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                    JwtAuthenticationFilter jwtFilter) throws Exception {
+                                                    JwtAuthenticationFilter jwtFilter,
+                                                    ObjectProvider<InternalTokenAuthenticationFilter> internalTokenFilter) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -64,8 +67,9 @@ public class SecurityConfig {
                 // Internal APIs are not exposed to browser clients.
                 .requestMatchers("/api/internal/**").hasAuthority("ROLE_SYSTEM")
                 .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+            );
+        internalTokenFilter.ifAvailable(filter -> http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class));
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

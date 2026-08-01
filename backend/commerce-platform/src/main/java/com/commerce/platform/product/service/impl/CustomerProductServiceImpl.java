@@ -48,8 +48,18 @@ public class CustomerProductServiceImpl implements CustomerProductService {
 
         boolean hasKeyword = StringUtils.hasText(request.getKeyword());
         boolean hasCategory = request.getCategoryId() != null && request.getCategoryId() > 0;
+        boolean hasPriceRange = request.getMinPrice() != null || request.getMaxPrice() != null;
 
-        if (hasKeyword && hasCategory) {
+        if (hasPriceRange) {
+            productPage = productRepository.searchCustomerProductsByPrice(
+                    ProductStatus.ON_SHELF,
+                    hasKeyword ? request.getKeyword() : null,
+                    hasCategory ? request.getCategoryId() : null,
+                    request.getMinPrice(),
+                    request.getMaxPrice(),
+                    pageRequest
+            );
+        } else if (hasKeyword && hasCategory) {
             productPage = productRepository.findByStatusAndProductNameContainingAndCategoryId(
                     ProductStatus.ON_SHELF, request.getKeyword(), request.getCategoryId(), pageRequest);
         } else if (hasKeyword) {

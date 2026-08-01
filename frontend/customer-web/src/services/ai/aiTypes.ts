@@ -15,8 +15,50 @@ export interface AIMessage {
     readonly productId?: string;
     readonly actionType?: AIActionType;
     readonly confidence?: number;
+    readonly productSearch?: AIProductSearchMetadata;
   };
 }
+
+export interface AIProductSearchProduct {
+  readonly id: number;
+  readonly productName: string;
+  readonly description?: string | null;
+  readonly brand?: string | null;
+  readonly categoryId?: number | null;
+  readonly categoryName?: string | null;
+  readonly minPrice?: number | null;
+  readonly maxPrice?: number | null;
+  readonly coverImage?: string | null;
+  readonly salesCount?: number | null;
+  readonly createdTime?: string | null;
+}
+
+export interface AIProductSearchQuery {
+  readonly keyword?: string;
+  readonly category_id?: number;
+  readonly min_price?: number;
+  readonly max_price?: number;
+  readonly page_size: number;
+}
+
+export interface AIProductSearchMetadata {
+  readonly query?: AIProductSearchQuery;
+  readonly products: AIProductSearchProduct[];
+  readonly total: number;
+  readonly error?: string;
+}
+
+export type AIStreamMeta =
+  | {
+      readonly type: 'product_search';
+      readonly query: AIProductSearchQuery;
+      readonly products: AIProductSearchProduct[];
+      readonly total: number;
+    }
+  | {
+      readonly type: 'product_search_error';
+      readonly message: string;
+    };
 
 /** AI 动作类型 */
 export type AIActionType =
@@ -81,6 +123,7 @@ export interface AIStreamResult {
 /** AI 流式响应回调 */
 export interface AIStreamHandlers {
   readonly onToken: (content: string) => void;
+  readonly onMeta: (meta: AIStreamMeta) => void;
   readonly onDone: (result: AIStreamResult) => void;
 }
 

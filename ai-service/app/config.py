@@ -24,6 +24,10 @@ DEFAULT_MODEL = os.getenv("AI_DEFAULT_MODEL", "gpt-4o-mini")
 # Internal service authentication. Production deployments must provide this value.
 INTERNAL_API_TOKEN = os.getenv("AI_INTERNAL_API_TOKEN", "")
 
+# Commerce Core tool connection.
+COMMERCE_CORE_BASE_URL = os.getenv("COMMERCE_CORE_BASE_URL", "http://localhost:8080").rstrip("/")
+COMMERCE_CORE_TIMEOUT_SECONDS = float(os.getenv("COMMERCE_CORE_TIMEOUT_SECONDS", "5"))
+
 # 日志配置
 LOG_LEVEL = os.getenv("AI_LOG_LEVEL", "INFO")
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

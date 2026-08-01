@@ -79,6 +79,32 @@ const useAIStore = create<AIState>((set, get) => ({
               ),
             }));
           },
+          onMeta: (meta) => {
+            set((state) => ({
+              messages: state.messages.map((message) => {
+                if (message.id !== assistantMessageId) return message;
+                const productSearch = meta.type === 'product_search'
+                  ? {
+                      query: meta.query,
+                      products: meta.products,
+                      total: meta.total,
+                    }
+                  : {
+                      products: [],
+                      total: 0,
+                      error: meta.message,
+                    };
+                return {
+                  ...message,
+                  metadata: {
+                    ...message.metadata,
+                    actionType: 'product_search',
+                    productSearch,
+                  },
+                };
+              }),
+            }));
+          },
           onDone: ({ conversationId, messageId }) => {
             set((state) => ({
               sessionId: conversationId,

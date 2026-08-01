@@ -4,6 +4,7 @@ import type {
   AIService,
   AISession,
   AIStreamHandlers,
+  AIStreamMeta,
   AIStreamResult,
 } from './aiTypes';
 import { getToken, removeToken } from '../../utils/token';
@@ -20,6 +21,11 @@ interface DoneEventData {
   message_id: string;
 }
 
+interface ErrorEventData {
+  type: 'stream_error';
+  message: string;
+}
+
 function isTokenEventData(value: unknown): value is TokenEventData {
   if (!value || typeof value !== 'object') return false;
   const data = value as Record<string, unknown>;
@@ -30,6 +36,25 @@ function isDoneEventData(value: unknown): value is DoneEventData {
   if (!value || typeof value !== 'object') return false;
   const data = value as Record<string, unknown>;
   return typeof data.conversation_id === 'string' && typeof data.message_id === 'string';
+}
+
+function isErrorEventData(value: unknown): value is ErrorEventData {
+  if (!value || typeof value !== 'object') return false;
+  const data = value as Record<string, unknown>;
+  return data.type === 'stream_error' && typeof data.message === 'string';
+}
+
+function isStreamMeta(value: unknown): value is AIStreamMeta {
+  if (!value || typeof value !== 'object') return false;
+  const data = value as Record<string, unknown>;
+  if (data.type === 'product_search_error') return typeof data.message === 'string';
+  return (
+    data.type === 'product_search'
+    && typeof data.total === 'number'
+    && Array.isArray(data.products)
+    && !!data.query
+    && typeof data.query === 'object'
+  );
 }
 
 function dispatchEventFrame(frame: string, handlers: AIStreamHandlers): void {
@@ -53,6 +78,13 @@ function dispatchEventFrame(frame: string, handlers: AIStreamHandlers): void {
   if (eventName === 'message' && isTokenEventData(data)) {
     handlers.onToken(data.content);
     return;
+  }
+  if (eventName === 'meta' && isStreamMeta(data)) {
+    handlers.onMeta(data);
+    return;
+  }
+  if (eventName === 'error' && isErrorEventData(data)) {
+    throw new Error(data.message);
   }
   if (eventName === 'done' && isDoneEventData(data)) {
     const result: AIStreamResult = {
