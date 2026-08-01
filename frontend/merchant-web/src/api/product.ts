@@ -108,9 +108,14 @@ export const productApi = {
    * 查询我的商品列表
    * GET /api/merchant/products?page=1&pageSize=10&status=xxx
    */
-  list: (params?: { page?: number; pageSize?: number; status?: string }) =>
+  list: (params?: { page?: number; pageSize?: number; status?: string; keyword?: string }) =>
     request.get<ApiResult<PageResponse<ProductVO>>, ApiResult<PageResponse<ProductVO>>>('/api/merchant/products', {
-      params: { page: params?.page ?? 1, pageSize: params?.pageSize ?? 10, ...(params?.status ? { status: params.status } : {}) },
+      params: {
+        page: params?.page ?? 1,
+        pageSize: params?.pageSize ?? 10,
+        ...(params?.status ? { status: params.status } : {}),
+        ...(params?.keyword ? { keyword: params.keyword } : {}),
+      },
     }),
 
   /**

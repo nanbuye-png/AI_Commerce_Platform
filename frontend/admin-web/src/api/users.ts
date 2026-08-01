@@ -28,9 +28,9 @@ export interface UserVO {
 
 export const userApi = {
   list: (params?: { page?: number; pageSize?: number; role?: string; status?: string; keyword?: string }): Promise<Result<PageResponse<UserVO>>> =>
-    request.get<Result<PageResponse<UserVO>>, Result<PageResponse<UserVO>>>('/admin/users', { params }),
+    request.get<Result<PageResponse<UserVO>>, Result<PageResponse<UserVO>>>('/api/admin/users', { params }),
   getDetail: (id: number): Promise<Result<UserVO>> =>
-    request.get<Result<UserVO>, Result<UserVO>>(`/admin/users/${id}`),
+    request.get<Result<UserVO>, Result<UserVO>>(`/api/admin/users/${id}`),
   updateStatus: (id: number, status: string) =>
-    request.put<Result<UserVO>, Result<UserVO>>(`/admin/users/${id}/status`, { status }),
+    request.put<Result<UserVO>, Result<UserVO>>(`/api/admin/users/${id}/status`, { status }),
 };

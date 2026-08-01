@@ -4,7 +4,6 @@ import { userApi } from '../../api/users';
 import { merchantApi } from '../../api/merchants';
 import { productApi } from '../../api/products';
 import { orderApi, type OrderVO } from '../../api/orders';
-import { aiStatsApi } from '../../api/aiStats';
 
 const StatCard: React.FC<{ title: string; value: string; icon: string; color: string; loading?: boolean }> = ({ title, value, icon, color, loading }) => (
   <div style={{ background: 'var(--color-bg-primary)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-lg)', boxShadow: 'var(--shadow-sm)' }}>
@@ -32,21 +31,17 @@ const DashboardPage: React.FC = () => {
   const [productPendingTotal, setProductPendingTotal] = useState(0);
   const [orderTotal, setOrderTotal] = useState(0);
   const [recentOrders, setRecentOrders] = useState<OrderVO[]>([]);
-  const [aiCallTotal, setAiCallTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | undefined;
-
     const loadData = async () => {
       try {
-        const [userRes, merchantRes, productRes, orderRes, aiRes] = await Promise.allSettled([
+        const [userRes, merchantRes, productRes, orderRes] = await Promise.allSettled([
           userApi.list({ page: 0, pageSize: 1 }),
           merchantApi.list({ page: 0, pageSize: 1 }),
           productApi.listPending({ page: 1, size: 1 }),
-          orderApi.list({ page: 1, pageSize: 5 }),
-          aiStatsApi.getStats(),
+          orderApi.list({ page: 0, pageSize: 5 }),
         ]);
 
         if (cancelled) return;
@@ -58,22 +53,14 @@ const DashboardPage: React.FC = () => {
           setOrderTotal(orderRes.value.data?.totalElements ?? 0);
           setRecentOrders(orderRes.value.data?.content ?? []);
         }
-        if (aiRes.status === 'fulfilled') setAiCallTotal(aiRes.value.data?.total_calls ?? 0);
       } catch (err) {
         console.error('加载平台数据失败:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
-
-    // 首次加载 + 每 5 秒刷新（与 AI 中心关联实时刷新 AI 调用量）
     void loadData();
-    timer = setInterval(() => void loadData(), 5000);
-
-    return () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
-    };
+    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -84,7 +71,7 @@ const DashboardPage: React.FC = () => {
         <StatCard title="入驻商家" value={merchantTotal.toLocaleString()} icon="🏪" color="var(--color-success)" loading={loading} />
         <StatCard title="待审核商品" value={productPendingTotal.toLocaleString()} icon="📦" color="var(--color-info)" loading={loading} />
         <StatCard title="订单总量" value={orderTotal.toLocaleString()} icon="📋" color="var(--color-warning)" loading={loading} />
-        <StatCard title="AI 调用" value={loading ? '...' : (aiCallTotal?.toLocaleString() ?? '—')} icon="🤖" color="var(--color-error)" loading={loading} />
+        <StatCard title="AI 调用" value="—" icon="🤖" color="var(--color-error)" />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-lg)' }}>
         <div style={{ background: 'var(--color-bg-primary)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-lg)', boxShadow: 'var(--shadow-sm)' }}>

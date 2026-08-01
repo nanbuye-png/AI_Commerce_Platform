@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import SERVICE_NAME, SERVICE_HOST, SERVICE_PORT, DEBUG, API_PREFIX
 from app.api.health import router as health_router
 from app.api.chat import router as chat_router
+from app.api.stats import router as stats_router
 from app.api import chat as chat_api
 
 
@@ -43,6 +44,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(health_router, prefix=API_PREFIX, tags=["Health"])
 app.include_router(chat_router, prefix=API_PREFIX, tags=["AI Chat"])
+app.include_router(stats_router, prefix=API_PREFIX, tags=["AI Stats"])
 
 
 if __name__ == "__main__":

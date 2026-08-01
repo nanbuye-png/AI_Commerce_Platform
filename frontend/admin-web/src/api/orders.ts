@@ -27,7 +27,7 @@ export interface OrderVO {
 
 export const orderApi = {
   list: (params: { page?: number; pageSize?: number; status?: string; userId?: number; merchantId?: number }): Promise<Result<PageResponse<OrderVO>>> =>
-    request.get<Result<PageResponse<OrderVO>>, Result<PageResponse<OrderVO>>>('/admin/orders', { params }),
+    request.get<Result<PageResponse<OrderVO>>, Result<PageResponse<OrderVO>>>('/api/admin/orders', { params }),
   getDetail: (orderNo: string): Promise<Result<OrderVO>> =>
-    request.get<Result<OrderVO>, Result<OrderVO>>(`/admin/orders/${orderNo}`),
+    request.get<Result<OrderVO>, Result<OrderVO>>(`/api/admin/orders/${orderNo}`),
 };

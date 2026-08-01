@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { productApi, type ProductVO } from '../../api/product';
 
@@ -25,23 +25,33 @@ const ProductListPage: React.FC = () => {
   const [products, setProducts] = useState<ProductVO[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [keyword, setKeyword] = useState('');
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async (p = page, st = statusFilter, kw = keyword) => {
     setLoading(true);
     try {
-      const res = await productApi.list({ page: 1, pageSize: 20 });
+      const params: { page: number; pageSize: number; status?: string; keyword?: string } = { page: p, pageSize };
+      if (st) params.status = st;
+      if (kw.trim()) params.keyword = kw.trim();
+      const res = await productApi.list(params);
       setProducts(res.data.content ?? []);
       setTotal(res.data.totalElements ?? 0);
+      setTotalPages(res.data.totalPages ?? 0);
     } catch (err) {
       console.error('加载商品失败:', err);
     } finally {
       setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter, keyword]);
 
   useEffect(() => {
     void loadProducts();
-  }, []);
+  }, [loadProducts]);
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('确定删除该商品吗？删除后不可恢复。')) return;
@@ -52,6 +62,11 @@ const ProductListPage: React.FC = () => {
       console.error('删除失败:', err);
       alert('删除失败，请稍后重试');
     }
+  };
+
+  const handleSearch = () => {
+    setPage(1);
+    void loadProducts(1, statusFilter, keyword);
   };
 
   return (
@@ -65,6 +80,35 @@ const ProductListPage: React.FC = () => {
           style={{ padding: '10px 20px', borderRadius: 'var(--radius-sm)', background: 'var(--color-accent)', color: '#fff', fontSize: '14px', fontWeight: 500, border: 'none', cursor: 'pointer' }}
         >
           + 添加商品
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 'var(--spacing-lg)' }}>
+        <input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          placeholder="搜索商品名称 / 编码"
+          style={{ flex: 1, maxWidth: 280, padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '14px' }}
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); void loadProducts(1, e.target.value, keyword); }}
+          style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '14px' }}
+        >
+          <option value="">全部状态</option>
+          <option value="DRAFT">草稿</option>
+          <option value="PENDING_REVIEW">待审核</option>
+          <option value="REJECTED">已驳回</option>
+          <option value="ON_SHELF">已上架</option>
+          <option value="OFF_SHELF">已下架</option>
+          <option value="ARCHIVED">已归档</option>
+        </select>
+        <button
+          onClick={handleSearch}
+          style={{ padding: '8px 20px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--color-accent)', color: '#fff', fontSize: '14px', cursor: 'pointer' }}
+        >
+          搜索
         </button>
       </div>
 
@@ -115,6 +159,26 @@ const ProductListPage: React.FC = () => {
           </table>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 'var(--spacing-lg)' }}>
+          <button
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: page <= 1 ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)', fontSize: '13px', cursor: page <= 1 ? 'not-allowed' : 'pointer' }}
+          >
+            上一页
+          </button>
+          <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{page} / {totalPages}</span>
+          <button
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: page >= totalPages ? 'var(--color-text-tertiary)' : 'var(--color-text-secondary)', fontSize: '13px', cursor: page >= totalPages ? 'not-allowed' : 'pointer' }}
+          >
+            下一页
+          </button>
+        </div>
+      )}
     </div>
   );
 };

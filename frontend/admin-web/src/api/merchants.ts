@@ -28,9 +28,9 @@ export interface MerchantVO {
 
 export const merchantApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string; keyword?: string }): Promise<Result<PageResponse<MerchantVO>>> =>
-    request.get<Result<PageResponse<MerchantVO>>, Result<PageResponse<MerchantVO>>>('/admin/merchants', { params }),
+    request.get<Result<PageResponse<MerchantVO>>, Result<PageResponse<MerchantVO>>>('/api/admin/merchants', { params }),
   getDetail: (id: number): Promise<Result<MerchantVO>> =>
-    request.get<Result<MerchantVO>, Result<MerchantVO>>(`/admin/merchants/${id}`),
+    request.get<Result<MerchantVO>, Result<MerchantVO>>(`/api/admin/merchants/${id}`),
   updateStatus: (id: number, status: string) =>
-    request.put<Result<MerchantVO>, Result<MerchantVO>>(`/admin/merchants/${id}/status`, { status }),
+    request.put<Result<MerchantVO>, Result<MerchantVO>>(`/api/admin/merchants/${id}/status`, { status }),
 };

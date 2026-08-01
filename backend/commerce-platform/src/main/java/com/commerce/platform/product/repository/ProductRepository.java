@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.math.BigDecimal;
 
@@ -39,33 +40,51 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByIdAndStatus(Long id, ProductStatus status);
 
     /**
-     * Customer端：查询ON_SHELF商品，支持名称模糊搜索和分类筛选
-     */
-    Page<Product> findByStatusAndProductNameContainingAndCategoryId(
-            ProductStatus status, String productName, Long categoryId, Pageable pageable);
-
-    /**
      * Customer端：查询ON_SHELF商品，按名称模糊搜索
      */
     Page<Product> findByStatusAndProductNameContaining(
             ProductStatus status, String productName, Pageable pageable);
 
     /**
-     * Customer端：查询ON_SHELF商品，按分类筛选
+     * Customer端：查询ON_SHELF商品，按名称模糊搜索 + 分类（含子分类）筛选
      */
-    Page<Product> findByStatusAndCategoryId(
-            ProductStatus status, Long categoryId, Pageable pageable);
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.status = :status
+              AND (:keyword = '' OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND p.categoryId IN :categoryIds
+            """)
+    Page<Product> searchCustomerProductsByKeywordAndCategoryIds(
+            @Param("status") ProductStatus status,
+            @Param("keyword") String keyword,
+            @Param("categoryIds") Collection<Long> categoryIds,
+            Pageable pageable);
+
+    /**
+     * Customer端：查询ON_SHELF商品，按分类（含子分类）筛选
+     */
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.status = :status
+              AND p.categoryId IN :categoryIds
+            """)
+    Page<Product> findByStatusAndCategoryIds(
+            @Param("status") ProductStatus status,
+            @Param("categoryIds") Collection<Long> categoryIds,
+            Pageable pageable);
 
     /**
      * Customer端：查询所有ON_SHELF商品
      */
     Page<Product> findByStatus(ProductStatus status, Pageable pageable);
 
+    /**
+     * Customer端：按价格区间查询（无分类过滤）
+     */
     @Query("""
             SELECT p FROM Product p
             WHERE p.status = :status
-              AND (:keyword IS NULL OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%')))
-              AND (:categoryId IS NULL OR p.categoryId = :categoryId)
+              AND (:keyword = '' OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%')))
               AND EXISTS (
                   SELECT sku.id FROM ProductSku sku
                   WHERE sku.product = p
@@ -77,7 +96,31 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> searchCustomerProductsByPrice(
             @Param("status") ProductStatus status,
             @Param("keyword") String keyword,
-            @Param("categoryId") Long categoryId,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            Pageable pageable
+    );
+
+    /**
+     * Customer端：按价格区间 + 分类（含子分类）过滤查询
+     */
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.status = :status
+              AND (:keyword = '' OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND p.categoryId IN :categoryIds
+              AND EXISTS (
+                  SELECT sku.id FROM ProductSku sku
+                  WHERE sku.product = p
+                    AND sku.status = 'ACTIVE'
+                    AND (:minPrice IS NULL OR sku.price >= :minPrice)
+                    AND (:maxPrice IS NULL OR sku.price <= :maxPrice)
+              )
+            """)
+    Page<Product> searchCustomerProductsByPriceAndCategoryIds(
+            @Param("status") ProductStatus status,
+            @Param("keyword") String keyword,
+            @Param("categoryIds") Collection<Long> categoryIds,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice,
             Pageable pageable

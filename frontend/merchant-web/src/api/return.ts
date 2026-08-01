@@ -28,14 +28,14 @@ interface Result<T> {
 
 export const returnApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string }) =>
-    request.get<Result<PageResponse<ReturnRequestVO>>, Result<PageResponse<ReturnRequestVO>>>('/merchant/returns', { params }),
+    request.get<Result<PageResponse<ReturnRequestVO>>, Result<PageResponse<ReturnRequestVO>>>('/api/merchant/returns', { params }),
 
   getDetail: (id: number) =>
-    request.get<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/merchant/returns/${id}`),
+    request.get<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/api/merchant/returns/${id}`),
 
   approve: (id: number) =>
-    request.post<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/merchant/returns/${id}/approve`),
+    request.post<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/api/merchant/returns/${id}/approve`),
 
   reject: (id: number) =>
-    request.post<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/merchant/returns/${id}/reject`),
+    request.post<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/api/merchant/returns/${id}/reject`),
 };

@@ -24,20 +24,20 @@ export interface ProductVO {
 
 export const productApi = {
   listPending: (params?: { page?: number; size?: number }): Promise<Result<PageResponse<ProductVO>>> =>
-    request.get<Result<PageResponse<ProductVO>>, Result<PageResponse<ProductVO>>>('/admin/products/pending', { params }),
+    request.get<Result<PageResponse<ProductVO>>, Result<PageResponse<ProductVO>>>('/api/admin/products/pending', { params }),
 
   getDetail: (id: number) =>
-    request.get<Result<ProductVO>, Result<ProductVO>>(`/admin/products/${id}`),
+    request.get<Result<ProductVO>, Result<ProductVO>>(`/api/admin/products/${id}`),
 
   approve: (id: number, remark?: string) =>
-    request.put<Result<void>, Result<void>>(`/admin/products/${id}/approve`, { auditRemark: remark || '审核通过' }),
+    request.put<Result<void>, Result<void>>(`/api/admin/products/${id}/approve`, { auditRemark: remark || '审核通过' }),
 
   reject: (id: number, remark?: string) =>
-    request.put<Result<void>, Result<void>>(`/admin/products/${id}/reject`, { auditRemark: remark || '审核驳回' }),
+    request.put<Result<void>, Result<void>>(`/api/admin/products/${id}/reject`, { auditRemark: remark || '审核驳回' }),
 
   offShelf: (id: number, remark?: string) =>
-    request.put<Result<void>, Result<void>>(`/admin/products/${id}/off-shelf`, { auditRemark: remark || '强制下架' }),
+    request.put<Result<void>, Result<void>>(`/api/admin/products/${id}/off-shelf`, { auditRemark: remark || '强制下架' }),
 
   restore: (id: number, remark?: string) =>
-    request.put<Result<void>, Result<void>>(`/admin/products/${id}/restore`, { auditRemark: remark || '恢复上架' }),
+    request.put<Result<void>, Result<void>>(`/api/admin/products/${id}/restore`, { auditRemark: remark || '恢复上架' }),
 };

@@ -20,7 +20,9 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -50,24 +52,48 @@ public class CustomerProductServiceImpl implements CustomerProductService {
         boolean hasCategory = request.getCategoryId() != null && request.getCategoryId() > 0;
         boolean hasPriceRange = request.getMinPrice() != null || request.getMaxPrice() != null;
 
+        // 如果选择了分类，收集该分类及其所有子分类的 ID，使一级分类也能匹配挂在其子分类下的商品
+        Set<Long> categoryIds = hasCategory
+                ? collectCategoryIds(request.getCategoryId())
+                : null;
+        // keyword 使用空字符串而非 null，避免 PostgreSQL 无法推断参数类型（lower(bytea) 错误）
+        String keyword = hasKeyword ? request.getKeyword() : "";
+
         if (hasPriceRange) {
-            productPage = productRepository.searchCustomerProductsByPrice(
-                    ProductStatus.ON_SHELF,
-                    hasKeyword ? request.getKeyword() : null,
-                    hasCategory ? request.getCategoryId() : null,
-                    request.getMinPrice(),
-                    request.getMaxPrice(),
-                    pageRequest
-            );
-        } else if (hasKeyword && hasCategory) {
-            productPage = productRepository.findByStatusAndProductNameContainingAndCategoryId(
-                    ProductStatus.ON_SHELF, request.getKeyword(), request.getCategoryId(), pageRequest);
+            if (hasCategory) {
+                productPage = productRepository.searchCustomerProductsByPriceAndCategoryIds(
+                        ProductStatus.ON_SHELF,
+                        keyword,
+                        categoryIds,
+                        request.getMinPrice(),
+                        request.getMaxPrice(),
+                        pageRequest
+                );
+            } else {
+                productPage = productRepository.searchCustomerProductsByPrice(
+                        ProductStatus.ON_SHELF,
+                        keyword,
+                        request.getMinPrice(),
+                        request.getMaxPrice(),
+                        pageRequest
+                );
+            }
+        } else if (hasCategory) {
+            if (hasKeyword) {
+                productPage = productRepository.searchCustomerProductsByKeywordAndCategoryIds(
+                        ProductStatus.ON_SHELF,
+                        keyword,
+                        categoryIds,
+                        pageRequest);
+            } else {
+                productPage = productRepository.findByStatusAndCategoryIds(
+                        ProductStatus.ON_SHELF,
+                        categoryIds,
+                        pageRequest);
+            }
         } else if (hasKeyword) {
             productPage = productRepository.findByStatusAndProductNameContaining(
-                    ProductStatus.ON_SHELF, request.getKeyword(), pageRequest);
-        } else if (hasCategory) {
-            productPage = productRepository.findByStatusAndCategoryId(
-                    ProductStatus.ON_SHELF, request.getCategoryId(), pageRequest);
+                    ProductStatus.ON_SHELF, keyword, pageRequest);
         } else {
             productPage = productRepository.findByStatus(ProductStatus.ON_SHELF, pageRequest);
         }
@@ -95,6 +121,27 @@ public class CustomerProductServiceImpl implements CustomerProductService {
     }
 
     // ==================== 私有方法 ====================
+
+    /**
+     * 递归收集指定分类及其所有子分类的 ID 集合
+     */
+    private Set<Long> collectCategoryIds(Long categoryId) {
+        Set<Long> ids = new LinkedHashSet<>();
+        collectCategoryIdsRecursive(categoryId, ids);
+        return ids;
+    }
+
+    private void collectCategoryIdsRecursive(Long categoryId, Set<Long> ids) {
+        if (categoryId == null || !ids.add(categoryId)) {
+            return;
+        }
+        List<Category> children = categoryRepository.findByParentIdOrderBySortAsc(categoryId);
+        if (children != null) {
+            for (Category child : children) {
+                collectCategoryIdsRecursive(child.getId(), ids);
+            }
+        }
+    }
 
     /**
      * 递归构建分类树

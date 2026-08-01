@@ -27,14 +27,14 @@ interface Result<T> {
 
 export const refundApi = {
   list: (params?: { page?: number; pageSize?: number; status?: string }) =>
-    request.get<Result<PageResponse<RefundVO>>, Result<PageResponse<RefundVO>>>('/merchant/refunds', { params }),
+    request.get<Result<PageResponse<RefundVO>>, Result<PageResponse<RefundVO>>>('/api/merchant/refunds', { params }),
 
   getDetail: (id: number) =>
-    request.get<Result<RefundVO>, Result<RefundVO>>(`/merchant/refunds/${id}`),
+    request.get<Result<RefundVO>, Result<RefundVO>>(`/api/merchant/refunds/${id}`),
 
   approve: (id: number) =>
-    request.post<Result<RefundVO>, Result<RefundVO>>(`/merchant/refunds/${id}/approve`),
+    request.post<Result<RefundVO>, Result<RefundVO>>(`/api/merchant/refunds/${id}/approve`),
 
   reject: (id: number) =>
-    request.post<Result<RefundVO>, Result<RefundVO>>(`/merchant/refunds/${id}/reject`),
+    request.post<Result<RefundVO>, Result<RefundVO>>(`/api/merchant/refunds/${id}/reject`),
 };

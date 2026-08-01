@@ -11,6 +11,7 @@ from app.services.commerce_tool import CommerceTool, CommerceToolError
 from app.services.llm_provider import LlmProvider
 from app.services.llm_provider_factory import create_llm_provider
 from app.services.product_search_intent_parser import ProductSearchIntentParser
+from app.services.usage_tracker import usage_tracker
 
 router = APIRouter()
 provider: LlmProvider = create_llm_provider()
@@ -76,6 +77,9 @@ async def _stream_chat(request: ChatStreamRequest) -> AsyncIterator[str]:
     response_class=StreamingResponse,
 )
 async def stream_chat(request: ChatStreamRequest) -> StreamingResponse:
+    # 简单估算 token 用量（中文约 1 字 ≈ 1 token）
+    estimated_tokens = max(1, len(request.message))
+    usage_tracker.record_call(succeeded=True, tokens=estimated_tokens, scenario="chat")
     return StreamingResponse(
         _stream_chat(request),
         media_type="text/event-stream",

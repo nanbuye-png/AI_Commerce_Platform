@@ -3,6 +3,8 @@ import request from './request';
 export interface InventoryVO {
   id: number;
   productSkuId: number;
+  skuCode: string;
+  productName: string;
   availableStock: number;
   reservedStock: number;
   totalStock: number;
@@ -12,6 +14,8 @@ export interface InventoryVO {
 export interface InventoryDetailVO {
   id: number;
   productSkuId: number;
+  skuCode: string;
+  productName: string;
   availableStock: number;
   reservedStock: number;
   totalStock: number;
@@ -44,16 +48,25 @@ export interface PageResponse<T> {
   size: number;
 }
 
+interface Result<T> {
+  code: number;
+  message: string;
+  data: T;
+}
+
 export const inventoryApi = {
-  list: (params?: { page?: number; pageSize?: number }) =>
-    request.get<PageResponse<InventoryVO>>('/merchant/inventory', { params }),
+  list: (params?: { page?: number; pageSize?: number; skuCode?: string; productName?: string }) =>
+    request.get<Result<PageResponse<InventoryVO>>, Result<PageResponse<InventoryVO>>>('/api/merchant/inventory', { params }),
 
   getDetail: (id: number) =>
-    request.get<InventoryDetailVO>(`/merchant/inventory/${id}`),
+    request.get<Result<InventoryDetailVO>, Result<InventoryDetailVO>>(`/api/merchant/inventory/${id}`),
 
   adjust: (id: number, data: InventoryAdjustRequest) =>
-    request.post(`/merchant/inventory/${id}/adjust`, data),
+    request.put<Result<void>, Result<void>>(`/api/merchant/inventory/${id}/adjust`, data),
+
+  inbound: (id: number, data: InventoryAdjustRequest) =>
+    request.post<Result<void>, Result<void>>(`/api/merchant/inventory/${id}/inbound`, data),
 
   movements: (id: number, params?: { page?: number; pageSize?: number }) =>
-    request.get<PageResponse<InventoryMovementVO>>(`/merchant/inventory/${id}/movements`, { params }),
+    request.get<Result<PageResponse<InventoryMovementVO>>, Result<PageResponse<InventoryMovementVO>>>(`/api/merchant/inventory/${id}/movements`, { params }),
 };

@@ -10,6 +10,8 @@ import RefundListPage from '../features/refunds/RefundListPage';
 import RefundDetailPage from '../features/refunds/RefundDetailPage';
 import ReturnListPage from '../features/returns/ReturnListPage';
 import ReturnDetailPage from '../features/returns/ReturnDetailPage';
+import InventoryListPage from '../features/inventory/InventoryListPage';
+import InventoryDetailPage from '../features/inventory/InventoryDetailPage';
 import AIAssistantPage from '../features/ai-assistant/AIAssistantPage';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
@@ -46,6 +48,8 @@ const router = createBrowserRouter([
       { path: 'refunds/:id', element: <RefundDetailPage /> },
       { path: 'returns', element: <ReturnListPage /> },
       { path: 'returns/:id', element: <ReturnDetailPage /> },
+      { path: 'inventory', element: <InventoryListPage /> },
+      { path: 'inventory/:id', element: <InventoryDetailPage /> },
       { path: 'ai-assistant', element: <AIAssistantPage /> },
       { path: '*', element: <DashboardPage /> },
     ],

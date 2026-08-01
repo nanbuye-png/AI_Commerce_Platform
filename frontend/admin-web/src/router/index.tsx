@@ -8,6 +8,7 @@ import ProductReviewPage from '../features/products/ProductReviewPage';
 import OrderListPage from '../features/orders/OrderListPage';
 import AICenterPage from '../features/ai-center/AICenterPage';
 import AuditLogPage from '../features/audit/AuditLogPage';
+import SettingsPage from '../features/settings/SettingsPage';
 import Login from '../pages/Login';
 import ProtectedRoute from './ProtectedRoute';
 import RoleGuard from './RoleGuard';
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
       { path: 'orders', element: <OrderListPage /> },
       { path: 'ai-center', element: <AICenterPage /> },
       { path: 'audit-log', element: <AuditLogPage /> },
+      { path: 'settings', element: <SettingsPage /> },
       { path: '*', element: <DashboardPage /> },
     ],
   },

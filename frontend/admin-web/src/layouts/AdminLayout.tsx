@@ -7,10 +7,10 @@ const sidebarItems: SidebarItem[] = [
   { path: '/dashboard', label: '仪表盘', icon: '📊' },
   { path: '/users', label: '用户管理', icon: '👤' },
   { path: '/merchants', label: '商家管理', icon: '🏪' },
-  { path: '/products/review', label: '商品审核', icon: '📋' },
+  { path: '/products', label: '商品审核', icon: '📋' },
   { path: '/orders', label: '订单监控', icon: '📦' },
   { path: '/ai-center', label: 'AI中心', icon: '🤖' },
-  { path: '/audit', label: '审计日志', icon: '📝' },
+  { path: '/audit-log', label: '审计日志', icon: '📝' },
   { path: '/settings', label: '系统设置', icon: '⚙️' },
 ];
 
