@@ -22,6 +22,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -201,7 +203,7 @@ public class ProductServiceImpl implements ProductService {
             product.getSpecs().addAll(specs);
         }
 
-        // 全量替换SKU
+        // 更新SKU：按 sku_code 匹配已有 SKU 进行更新（避免 clear+addAll 触发唯一约束冲突）
         if (request.getSkus() != null) {
             // 检查SKU编码重复
             long distinctSkuCodes = request.getSkus().stream()
@@ -212,23 +214,43 @@ public class ProductServiceImpl implements ProductService {
                 throw new BusinessException(PRODUCT_INVALID_STATUS, "SKU编码不能重复");
             }
 
-            product.getSkus().clear();
-            List<ProductSku> skus = new ArrayList<>();
+            // 建立 sku_code -> 已有 SKU 的映射
+            Map<String, ProductSku> existingByCode = product.getSkus().stream()
+                    .collect(Collectors.toMap(ProductSku::getSkuCode, sku -> sku, (a, b) -> a));
+
+            // 请求中出现的 sku_code 集合
+            Set<String> requestedCodes = request.getSkus().stream()
+                    .map(ProductSkuRequest::getSkuCode)
+                    .collect(Collectors.toSet());
+
+            // 删除不在请求中的旧 SKU（物理删除，避免唯一约束残留）
+            product.getSkus().removeIf(sku -> !requestedCodes.contains(sku.getSkuCode()));
+
+            // 更新或新增 SKU
             for (ProductSkuRequest skuReq : request.getSkus()) {
-                ProductSku sku = ProductSku.builder()
-                        .product(product)
-                        .skuCode(skuReq.getSkuCode())
-                        .attributesJson(skuReq.getAttributesJson())
-                        .price(skuReq.getPrice())
-                        .originalPrice(skuReq.getOriginalPrice())
-                        .weight(skuReq.getWeight() != null ? skuReq.getWeight() : java.math.BigDecimal.ZERO)
-                        .status("ACTIVE")
-                        .salesCount(0)
-                        .deleted(false)
-                        .build();
-                skus.add(sku);
+                ProductSku existing = existingByCode.get(skuReq.getSkuCode());
+                if (existing != null) {
+                    // 已存在则更新字段（保留 id，走 UPDATE 而非 INSERT）
+                    existing.setAttributesJson(skuReq.getAttributesJson());
+                    existing.setPrice(skuReq.getPrice());
+                    existing.setOriginalPrice(skuReq.getOriginalPrice());
+                    existing.setWeight(skuReq.getWeight() != null ? skuReq.getWeight() : java.math.BigDecimal.ZERO);
+                } else {
+                    // 不存在则新增
+                    ProductSku sku = ProductSku.builder()
+                            .product(product)
+                            .skuCode(skuReq.getSkuCode())
+                            .attributesJson(skuReq.getAttributesJson())
+                            .price(skuReq.getPrice())
+                            .originalPrice(skuReq.getOriginalPrice())
+                            .weight(skuReq.getWeight() != null ? skuReq.getWeight() : java.math.BigDecimal.ZERO)
+                            .status("ACTIVE")
+                            .salesCount(0)
+                            .deleted(false)
+                            .build();
+                    product.getSkus().add(sku);
+                }
             }
-            product.getSkus().addAll(skus);
         }
 
         productRepository.save(product);
