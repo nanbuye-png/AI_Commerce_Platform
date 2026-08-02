@@ -1,6 +1,8 @@
 package com.commerce.platform.product.service.impl;
 
 import com.commerce.platform.common.exception.BusinessException;
+import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.product.dto.customer.*;
 import com.commerce.platform.product.entity.Category;
 import com.commerce.platform.product.entity.Product;
@@ -35,6 +37,7 @@ public class CustomerProductServiceImpl implements CustomerProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final InventoryStockRepository inventoryStockRepository;
 
     private static final int PRODUCT_NOT_FOUND = 30001;
     private static final int PRODUCT_OFFLINE = 30005;
@@ -274,6 +277,9 @@ public class CustomerProductServiceImpl implements CustomerProductService {
                 vo.setOriginalPrice(sku.getOriginalPrice());
                 vo.setWeight(sku.getWeight());
                 vo.setStatus(sku.getStatus());
+                vo.setStock(inventoryStockRepository.findBySkuId(sku.getId())
+                        .map(InventoryStock::getAvailableQuantity)
+                        .orElse(0));
                 return vo;
             }).collect(Collectors.toList()));
         }

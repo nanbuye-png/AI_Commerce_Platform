@@ -4,6 +4,8 @@ import SearchBar from './components/SearchBar';
 import ProductGrid from '../product/components/ProductGrid';
 import ProductSkeleton from '../product/components/ProductSkeleton';
 import { productService, type ProductView } from '../../services/product';
+import { profileService } from '../../services/profile';
+import { getToken } from '../../utils/token';
 import type { Product } from '../product/types/product';
 
 /** 将 ProductView 映射为 ProductGrid 期望的 Product 类型 */
@@ -42,6 +44,58 @@ const SearchPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+
+  // 加载已收藏商品集合（登录用户）
+  useEffect(() => {
+    if (!getToken()) return;
+    let cancelled = false;
+    profileService
+      .listFavorites(1, 100)
+      .then((res) => {
+        if (!cancelled) {
+          setFavoritedIds(new Set((res.list ?? []).map((f) => String(f.productId))));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** 收藏/取消收藏 */
+  const handleFavorite = async (productId: string) => {
+    if (!getToken()) {
+      navigate('/login');
+      return;
+    }
+    const pid = Number(productId);
+    const isFav = favoritedIds.has(productId);
+    try {
+      if (isFav) {
+        await profileService.removeFavorite(pid);
+      } else {
+        const p = products.find((x) => x.id === productId);
+        await profileService.addFavorite({
+          productId: pid,
+          productName: p?.name,
+          productImage: p?.thumbnail || undefined,
+          price: p?.price,
+        });
+      }
+      setFavoritedIds((prev) => {
+        const next = new Set(prev);
+        if (isFav) {
+          next.delete(productId);
+        } else {
+          next.add(productId);
+        }
+        return next;
+      });
+    } catch (err) {
+      console.error('收藏操作失败:', err);
+    }
+  };
 
   useEffect(() => {
     if (!keyword) {
@@ -119,7 +173,12 @@ const SearchPage: React.FC = () => {
               ))}
             </div>
           ) : (
-            <ProductGrid products={products} loading={false} />
+            <ProductGrid
+              products={products}
+              loading={false}
+              onFavorite={handleFavorite}
+              favoritedIds={favoritedIds}
+            />
           )}
         </>
       ) : (

@@ -1,6 +1,8 @@
 package com.commerce.platform.order.service;
 
 import com.commerce.platform.common.exception.BusinessException;
+import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.order.domain.entity.Order;
 import com.commerce.platform.order.domain.enums.OrderStatus;
 import com.commerce.platform.order.domain.repository.OrderRepository;
@@ -39,6 +41,7 @@ public class OrderApplicationService {
     private final OrderDomainService orderDomainService;
     private final OrderRepository orderRepository;
     private final ProductSkuRepository productSkuRepository;
+    private final InventoryStockRepository inventoryStockRepository;
 
     /**
      * 创建订单
@@ -70,6 +73,19 @@ public class OrderApplicationService {
         for (ProductSku sku : skus) {
             if (!"ACTIVE".equals(sku.getStatus())) {
                 throw new BusinessException(32002, String.format("商品已下架：SKU=%d", sku.getId()));
+            }
+        }
+
+        // 库存校验：购买数量必须 <= 可用库存
+        for (com.commerce.platform.order.dto.request.CreateOrderItemRequest itemReq : request.getItems()) {
+            Long skuId = itemReq.getSkuId();
+            int quantity = itemReq.getQuantity();
+            InventoryStock stock = inventoryStockRepository.findBySkuId(skuId)
+                    .orElse(null);
+            int available = stock != null ? stock.getAvailableQuantity() : 0;
+            if (available < quantity) {
+                throw new BusinessException(32003,
+                        String.format("商品库存不足：SKU=%d，当前库存=%d，购买数量=%d", skuId, available, quantity));
             }
         }
 

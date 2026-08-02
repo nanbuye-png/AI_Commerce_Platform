@@ -10,6 +10,8 @@ interface ProductGridProps {
   compact?: boolean;
   onAddToCart?: (productId: string) => void;
   onFavorite?: (productId: string) => void;
+  /** 已收藏的商品 ID 集合（用于卡片心形高亮） */
+  favoritedIds?: Set<string>;
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({
@@ -18,6 +20,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   compact = false,
   onAddToCart,
   onFavorite,
+  favoritedIds,
 }) => {
   if (loading) {
     return (
@@ -60,6 +63,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
           variant={compact ? 'compact' : 'full'}
           onAddToCart={onAddToCart}
           onFavorite={onFavorite}
+          favorited={favoritedIds ? favoritedIds.has(product.id) : false}
         />
       ))}
     </div>

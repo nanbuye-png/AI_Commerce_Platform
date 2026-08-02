@@ -5,12 +5,37 @@ import CartItem from '../components/CartItem';
 import CartSummary from '../components/CartSummary';
 import { EmptyState } from '../../../components/common';
 import { cartService } from '../../../services/cart';
+import { profileService } from '../../../services/profile';
 import { getToken } from '../../../utils/token';
 
 const CartPage: React.FC = () => {
   const { items, setItems } = useCartStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+
+  /** 去结算：先校验库存，库存不足则不进入结算页 */
+  const handleCheckout = async () => {
+    const checkedItems = items.filter((i) => i.checked);
+    if (checkedItems.length === 0) return;
+    setChecking(true);
+    try {
+      for (const item of checkedItems) {
+        if (!item.skuId) continue;
+        const ok = await profileService.checkStock(item.skuId, item.quantity);
+        if (!ok) {
+          const stock = await profileService.getStock(item.skuId);
+          alert(`「${item.name}」库存不足，当前仅剩 ${stock} 件，请调整购买数量`);
+          return;
+        }
+      }
+      navigate('/checkout');
+    } catch {
+      alert('库存校验失败，请稍后重试');
+    } finally {
+      setChecking(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +115,7 @@ const CartPage: React.FC = () => {
           ))}
         </div>
       </div>
-      <CartSummary onCheckout={() => navigate('/checkout')} />
+      <CartSummary onCheckout={handleCheckout} checking={checking} />
     </div>
   );
 };

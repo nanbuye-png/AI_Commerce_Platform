@@ -1,8 +1,19 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 
 const ProfilePage: React.FC = () => {
+  const navigate = useNavigate();
   const { userInfo, logout } = useAuthStore();
+
+  const menuItems = [
+    { label: '我的订单', icon: '📦', path: '/orders' },
+    { label: '收货地址', icon: '📍', path: '/profile/address' },
+    { label: '优惠券', icon: '🎫', path: '/profile/coupons' },
+    { label: '收藏夹', icon: '❤️', path: '/profile/favorites' },
+    { label: '浏览历史', icon: '🕐', path: '/profile/history' },
+    { label: '账号设置', icon: '⚙️', path: '/profile/settings' },
+  ];
 
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 800, margin: '0 auto' }}>
@@ -46,16 +57,10 @@ const ProfilePage: React.FC = () => {
 
       {/* Menu Items */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-        {[
-          { label: '我的订单', icon: '📦' },
-          { label: '收货地址', icon: '📍' },
-          { label: '优惠券', icon: '🎫' },
-          { label: '收藏夹', icon: '❤️' },
-          { label: '浏览历史', icon: '🕐' },
-          { label: '账号设置', icon: '⚙️' },
-        ].map((item) => (
+        {menuItems.map((item) => (
           <div
             key={item.label}
+            onClick={() => navigate(item.path)}
             style={{
               display: 'flex',
               alignItems: 'center',

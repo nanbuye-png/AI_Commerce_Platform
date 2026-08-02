@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import ProductGrid from './components/ProductGrid';
 import ProductSkeleton from './components/ProductSkeleton';
 import { productService, type ProductView, type CategoryNode } from '../../services/product';
+import { profileService } from '../../services/profile';
+import { getToken } from '../../utils/token';
 import type { Product } from './types/product';
 
 const sortOptions: { label: string; value: string }[] = [
@@ -53,6 +55,58 @@ const ProductListPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+
+  // 加载已收藏商品集合（登录用户）
+  useEffect(() => {
+    if (!getToken()) return;
+    let cancelled = false;
+    profileService
+      .listFavorites(1, 100)
+      .then((res) => {
+        if (!cancelled) {
+          setFavoritedIds(new Set((res.list ?? []).map((f) => String(f.productId))));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** 收藏/取消收藏 */
+  const handleFavorite = async (productId: string) => {
+    if (!getToken()) {
+      window.location.href = '/login';
+      return;
+    }
+    const pid = Number(productId);
+    const isFav = favoritedIds.has(productId);
+    try {
+      if (isFav) {
+        await profileService.removeFavorite(pid);
+      } else {
+        const p = products.find((x) => x.id === productId);
+        await profileService.addFavorite({
+          productId: pid,
+          productName: p?.name,
+          productImage: p?.thumbnail || undefined,
+          price: p?.price,
+        });
+      }
+      setFavoritedIds((prev) => {
+        const next = new Set(prev);
+        if (isFav) {
+          next.delete(productId);
+        } else {
+          next.add(productId);
+        }
+        return next;
+      });
+    } catch (err) {
+      console.error('收藏操作失败:', err);
+    }
+  };
 
   // 加载分类树
   useEffect(() => {
@@ -222,6 +276,8 @@ const ProductListPage: React.FC = () => {
         <ProductGrid
           products={products}
           loading={false}
+          onFavorite={handleFavorite}
+          favoritedIds={favoritedIds}
         />
       )}
     </div>

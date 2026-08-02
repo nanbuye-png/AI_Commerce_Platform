@@ -67,6 +67,7 @@ export interface BackendProductDetail {
     originalPrice?: number | string;
     weight?: number | string;
     status?: string;
+    stock?: number;
   }[];
 }
 
@@ -76,6 +77,7 @@ export interface ProductSkuView {
   skuCode?: string;
   price: number;
   originalPrice?: number;
+  stock?: number;
 }
 
 /** 适配后的前端统一商品结构（供 ProductCard/ProductDetailPage 使用） */
@@ -174,6 +176,7 @@ function toDetailView(p: BackendProductDetail): ProductView {
       skuCode: s.skuCode,
       price: Number(s.price) || 0,
       originalPrice: s.originalPrice ? Number(s.originalPrice) : undefined,
+      stock: s.stock ?? 0,
     })),
   };
 }

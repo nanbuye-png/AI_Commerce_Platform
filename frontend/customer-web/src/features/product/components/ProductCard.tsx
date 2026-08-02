@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Product } from '../types/product';
 import ProductPrice from './ProductPrice';
@@ -9,6 +9,8 @@ interface ProductCardProps {
   variant?: 'compact' | 'full' | 'horizontal';
   onAddToCart?: (productId: string) => void;
   onFavorite?: (productId: string) => void;
+  /** 初始是否已收藏（默认 false） */
+  favorited?: boolean;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({
@@ -16,11 +18,55 @@ const ProductCard: React.FC<ProductCardProps> = ({
   variant = 'full',
   onAddToCart,
   onFavorite,
+  favorited = false,
 }) => {
   const navigate = useNavigate();
+  const [isFavorited, setIsFavorited] = useState(favorited);
+
+  useEffect(() => {
+    setIsFavorited(favorited);
+  }, [favorited]);
 
   const handleClick = () => {
     void navigate(`/products/${product.id}`);
+  };
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onFavorite) return;
+    setIsFavorited(!isFavorited);
+    onFavorite(product.id);
+  };
+
+  /** 通用收藏按钮（右上角圆形悬浮） */
+  const renderFavoriteButton = () => {
+    if (!onFavorite) return null;
+    return (
+      <button
+        onClick={handleFavoriteClick}
+        title={isFavorited ? '取消收藏' : '收藏'}
+        style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.85)',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '16px',
+          color: isFavorited ? '#FF3B30' : 'var(--color-text-tertiary)',
+          transition: 'color var(--transition-fast), transform var(--transition-fast)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        {isFavorited ? '♥' : '♡'}
+      </button>
+    );
   };
 
   // Compact variant (用于推荐区域/关联商品)
@@ -70,6 +116,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
             {product.isNew && <ProductBadge type="new" />}
             {product.isHot && <ProductBadge type="hot" />}
           </div>
+          {/* Favorite */}
+          {renderFavoriteButton()}
         </div>
         <div style={{ padding: '8px 10px' }}>
           <p
@@ -104,6 +152,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
           transition: 'box-shadow var(--transition-fast)',
+          position: 'relative',
         }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)'; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
@@ -134,6 +183,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </p>
           <ProductPrice price={product.price} originalPrice={product.originalPrice} size="sm" />
         </div>
+        {/* Favorite */}
+        {renderFavoriteButton()}
       </div>
     );
   }
@@ -183,28 +234,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           {product.discount && <ProductBadge type="sale" text={`-${Math.round(product.discount * 100)}%`} />}
         </div>
         {/* Favorite */}
-        {onFavorite && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onFavorite(product.id); }}
-            style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.8)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-            }}
-          >
-            ♡
-          </button>
-        )}
+        {renderFavoriteButton()}
       </div>
 
       {/* Info */}

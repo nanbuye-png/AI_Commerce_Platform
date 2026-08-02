@@ -5,6 +5,7 @@ import ProductPrice from './components/ProductPrice';
 import ProductSkeleton from './components/ProductSkeleton';
 import { productService, type ProductView } from '../../services/product';
 import { cartService } from '../../services/cart';
+import { profileService } from '../../services/profile';
 import { getToken } from '../../utils/token';
 
 const ProductDetailPage: React.FC = () => {
@@ -15,6 +16,37 @@ const ProductDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+
+  /** 收藏 / 取消收藏 */
+  const handleFavorite = async () => {
+    if (!product) return;
+    if (!getToken()) {
+      navigate('/login');
+      return;
+    }
+    setFavLoading(true);
+    try {
+      if (isFavorited) {
+        await profileService.removeFavorite(product.id);
+      } else {
+        await profileService.addFavorite({
+          productId: product.id,
+          productName: product.name,
+          productImage: product.thumbnail || undefined,
+          price: product.price,
+        });
+      }
+      setIsFavorited(!isFavorited);
+    } catch (err) {
+      console.error('收藏操作失败:', err);
+      alert('收藏操作失败，请稍后重试');
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -25,6 +57,10 @@ const ProductDetailPage: React.FC = () => {
     const sku = product.skus?.[0];
     if (!sku) {
       alert('该商品暂无可购买规格');
+      return;
+    }
+    if ((sku.stock ?? 0) < 1) {
+      alert('商品库存不足，暂无法加入购物车');
       return;
     }
     setAdding(true);
@@ -47,6 +83,36 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
+  /** 立即购买：先校验库存，再跳转结算页 */
+  const handleBuyNow = async () => {
+    if (!product) return;
+    if (!getToken()) {
+      navigate('/login');
+      return;
+    }
+    const sku = product.skus?.[0];
+    if (!sku) {
+      alert('该商品暂无可购买规格');
+      return;
+    }
+    setBuying(true);
+    try {
+      // 调用后端库存校验接口（库存不足时返回 false）
+      const ok = await profileService.checkStock(sku.id, 1);
+      if (!ok) {
+        const stock = await profileService.getStock(sku.id);
+        alert(`商品库存不足，当前仅剩 ${stock} 件`);
+        return;
+      }
+      navigate(`/checkout?skuId=${sku.id}&productId=${product.id}&quantity=1&price=${sku.price || product.price}&name=${encodeURIComponent(product.name)}&image=${encodeURIComponent(product.thumbnail || '')}`);
+    } catch (err) {
+      console.error('库存校验失败:', err);
+      alert('库存校验失败，请稍后重试');
+    } finally {
+      setBuying(false);
+    }
+  };
+
   useEffect(() => {
     if (!productId) {
       setLoading(false);
@@ -61,7 +127,25 @@ const ProductDetailPage: React.FC = () => {
     productService
       .getProductDetail(productId)
       .then((res) => {
-        if (!cancelled) setProduct(res);
+        if (cancelled) return;
+        setProduct(res);
+        // 记录浏览历史（登录用户）
+        if (getToken()) {
+          profileService.addBrowseHistory({
+            productId: res.id,
+            productName: res.name,
+            productImage: res.thumbnail || undefined,
+            price: res.price,
+          }).catch(() => {});
+          // 检查当前商品是否已收藏
+          profileService.listFavorites(1, 100)
+            .then((favRes) => {
+              if (!cancelled) {
+                setIsFavorited(favRes.list?.some((f) => f.productId === res.id) ?? false);
+              }
+            })
+            .catch(() => {});
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -110,6 +194,8 @@ const ProductDetailPage: React.FC = () => {
       </div>
     );
   }
+
+  const stock = product.skus?.[0]?.stock ?? 0;
 
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 960, margin: '0 auto' }}>
@@ -168,7 +254,9 @@ const ProductDetailPage: React.FC = () => {
           <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
             <span>★ {product.rating.toFixed(1)} ({product.reviewCount}条评价)</span>
             <span>已售 {product.salesCount}</span>
-            <span>库存 {product.stock}</span>
+            <span style={{ color: stock > 0 ? 'var(--color-success)' : 'var(--color-error)' }}>
+              库存 {stock > 0 ? stock : '无货'}
+            </span>
           </div>
 
           {/* Specifications Selector */}
@@ -202,8 +290,30 @@ const ProductDetailPage: React.FC = () => {
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
             <button
+              onClick={handleFavorite}
+              disabled={favLoading}
+              title={isFavorited ? '取消收藏' : '收藏'}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 'var(--radius-sm)',
+                background: isFavorited ? 'rgba(255, 59, 48, 0.1)' : 'var(--color-bg-secondary)',
+                color: isFavorited ? '#FF3B30' : 'var(--color-text-tertiary)',
+                fontSize: '20px',
+                fontWeight: 600,
+                border: isFavorited ? '1px solid #FF3B30' : '1px solid var(--color-border)',
+                cursor: favLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {isFavorited ? '♥' : '♡'}
+            </button>
+            <button
               onClick={handleAddToCart}
-              disabled={adding}
+              disabled={adding || stock <= 0}
               style={{
                 flex: 1,
                 height: 48,
@@ -213,12 +323,15 @@ const ProductDetailPage: React.FC = () => {
                 fontSize: '16px',
                 fontWeight: 500,
                 border: 'none',
-                cursor: adding ? 'wait' : 'pointer',
+                cursor: adding || stock <= 0 ? 'not-allowed' : 'pointer',
+                opacity: adding || stock <= 0 ? 0.6 : 1,
               }}
             >
               {added ? '已加入 ✓' : '加入购物车'}
             </button>
             <button
+              onClick={handleBuyNow}
+              disabled={buying || stock <= 0}
               style={{
                 flex: 1,
                 height: 48,
@@ -228,10 +341,11 @@ const ProductDetailPage: React.FC = () => {
                 fontSize: '16px',
                 fontWeight: 500,
                 border: 'none',
-                cursor: 'pointer',
+                cursor: buying || stock <= 0 ? 'not-allowed' : 'pointer',
+                opacity: buying || stock <= 0 ? 0.6 : 1,
               }}
             >
-              立即购买
+              {buying ? '校验中...' : '立即购买'}
             </button>
           </div>
         </div>

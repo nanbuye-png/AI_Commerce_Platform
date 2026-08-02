@@ -3,9 +3,10 @@ import useCartStore from '../store/cartStore';
 
 interface CartSummaryProps {
   onCheckout: () => void;
+  checking?: boolean;
 }
 
-const CartSummary: React.FC<CartSummaryProps> = ({ onCheckout }) => {
+const CartSummary: React.FC<CartSummaryProps> = ({ onCheckout, checking }) => {
   const { getSummary, toggleCheckAll, items } = useCartStore();
   const summary = getSummary();
   const allChecked = items.length > 0 && items.every((item) => item.checked);
@@ -80,7 +81,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({ onCheckout }) => {
             transition: 'background var(--transition-fast)',
           }}
         >
-          去结算
+          {checking ? '校验中...' : '去结算'}
         </button>
       </div>
     </div>

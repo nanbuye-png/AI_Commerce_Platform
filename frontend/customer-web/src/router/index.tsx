@@ -14,6 +14,11 @@ import ProductListPage from '../features/product/ProductListPage';
 import ProductDetailPage from '../features/product/ProductDetailPage';
 import OrderPage from '../features/order/OrderPage';
 import ProfilePage from '../features/profile/ProfilePage';
+import AddressPage from '../features/profile/address/AddressPage';
+import CouponPage from '../features/profile/coupon/CouponPage';
+import FavoritePage from '../features/profile/favorite/FavoritePage';
+import HistoryPage from '../features/profile/history/HistoryPage';
+import SettingsPage from '../features/profile/settings/SettingsPage';
 import AIPage from '../features/ai/AIPage';
 
 // Feature Pages (Sprint 3 - product commerce core)
@@ -111,6 +116,46 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile/address',
+        element: (
+          <ProtectedRoute>
+            <AddressPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile/coupons',
+        element: (
+          <ProtectedRoute>
+            <CouponPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile/favorites',
+        element: (
+          <ProtectedRoute>
+            <FavoritePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile/history',
+        element: (
+          <ProtectedRoute>
+            <HistoryPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile/settings',
+        element: (
+          <ProtectedRoute>
+            <SettingsPage />
           </ProtectedRoute>
         ),
       },
