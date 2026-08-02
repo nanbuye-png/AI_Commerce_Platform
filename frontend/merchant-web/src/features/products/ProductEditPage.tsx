@@ -122,7 +122,7 @@ const ProductEditPage: React.FC = () => {
     setError(null);
     try {
       await productApi.update(Number(id), payload);
-      navigate('/products');
+      void navigate('/products');
     } catch (err) {
       console.error('更新失败:', err);
       setError('更新失败，请稍后重试');

@@ -66,7 +66,7 @@ const SearchPage: React.FC = () => {
   /** 收藏/取消收藏 */
   const handleFavorite = async (productId: string) => {
     if (!getToken()) {
-      navigate('/login');
+      void navigate('/login');
       return;
     }
     const pid = Number(productId);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { profileService, type Coupon } from '../../../services/profile';
 
 const CouponPage: React.FC = () => {
@@ -13,15 +13,15 @@ const CouponPage: React.FC = () => {
     { key: 'ALL', label: '全部' },
   ] as const;
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     profileService.listCoupons(tab)
       .then(setCoupons)
       .catch(() => {})
       .finally(() => setLoading(false));
-  };
+  }, [tab]);
 
-  useEffect(() => { load(); }, [tab]);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 700, margin: '0 auto' }}>

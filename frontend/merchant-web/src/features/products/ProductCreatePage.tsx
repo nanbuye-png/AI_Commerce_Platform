@@ -128,7 +128,7 @@ const ProductCreatePage: React.FC = () => {
     try {
       const res = await productApi.create(payload);
       console.info('商品创建成功 id=', res.data);
-      navigate('/products');
+      void navigate('/products');
     } catch (err) {
       console.error('创建失败:', err);
       setError('创建失败，请稍后重试');

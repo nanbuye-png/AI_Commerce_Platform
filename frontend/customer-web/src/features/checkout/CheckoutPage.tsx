@@ -63,7 +63,7 @@ const CheckoutPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!getToken()) {
-      navigate('/login');
+      void navigate('/login');
       return;
     }
 
@@ -96,7 +96,7 @@ const CheckoutPage: React.FC = () => {
           setPaymentGuide(detail);
         } catch {
           // 未生成凭证时直接进入订单列表
-          navigate('/orders', { replace: true });
+          void navigate('/orders', { replace: true });
         }
       } else {
         // ===== 购物车结算模式：统一走 POST /api/orders 创建订单（与"立即购买"完全一致）=====
@@ -160,7 +160,7 @@ const CheckoutPage: React.FC = () => {
           const detail = await orderService.paymentByOrder(result.orderNo);
           setPaymentGuide(detail);
         } catch {
-          navigate('/orders', { replace: true });
+          void navigate('/orders', { replace: true });
         }
       }
     } catch (err: unknown) {

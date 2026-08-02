@@ -48,7 +48,7 @@ const HomePage: React.FC = () => {
   }, []);
 
   const handleDetail = (id: number) => {
-    navigate(`/products/${id}`);
+    void navigate(`/products/${id}`);
   };
 
   return (

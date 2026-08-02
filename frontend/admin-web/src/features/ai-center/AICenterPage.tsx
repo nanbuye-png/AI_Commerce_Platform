@@ -23,7 +23,6 @@ const AICenterPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | undefined;
 
     const loadStats = async () => {
       try {
@@ -43,11 +42,11 @@ const AICenterPage: React.FC = () => {
     };
 
     void loadStats();
-    timer = setInterval(() => void loadStats(), 5000);
+    const timer = setInterval(() => void loadStats(), 5000);
 
     return () => {
       cancelled = true;
-      if (timer) clearInterval(timer);
+      clearInterval(timer);
     };
   }, []);
 

@@ -39,7 +39,7 @@ export const uploadApi = {
       });
     } catch (err) {
       console.error('上传网络错误:', err);
-      throw new Error('网络错误，请检查网络连接');
+      throw new Error('网络错误，请检查网络连接', { cause: err });
     }
 
     if (!resp.ok) {

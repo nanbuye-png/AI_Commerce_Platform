@@ -32,7 +32,7 @@ const Register: React.FC = () => {
       });
 
       if (res.code === 0) {
-        navigate('/login', { replace: true });
+        void navigate('/login', { replace: true });
       } else {
         setError(res.message || '注册失败');
       }

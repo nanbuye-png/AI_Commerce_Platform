@@ -148,7 +148,7 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
             <button
               onClick={() => {
                 const next = item.quantity - 1;
-                if (next >= 1) handleUpdateQuantity(next);
+                if (next >= 1) void handleUpdateQuantity(next);
               }}
               disabled={item.quantity <= 1 || syncing}
               style={{

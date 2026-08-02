@@ -72,7 +72,7 @@ const OrderPage: React.FC = () => {
     let cancelled = false;
 
     if (!getToken()) {
-      navigate('/login');
+      void navigate('/login');
       return;
     }
 

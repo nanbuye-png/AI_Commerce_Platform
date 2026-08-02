@@ -24,7 +24,7 @@ const ProductDetailPage: React.FC = () => {
   const handleFavorite = async () => {
     if (!product) return;
     if (!getToken()) {
-      navigate('/login');
+      void navigate('/login');
       return;
     }
     setFavLoading(true);
@@ -51,7 +51,7 @@ const ProductDetailPage: React.FC = () => {
   const handleAddToCart = async () => {
     if (!product) return;
     if (!getToken()) {
-      navigate('/login');
+      void navigate('/login');
       return;
     }
     const sku = product.skus?.[0];
@@ -89,7 +89,7 @@ const ProductDetailPage: React.FC = () => {
   const handleBuyNow = async () => {
     if (!product) return;
     if (!getToken()) {
-      navigate('/login');
+      void navigate('/login');
       return;
     }
     const sku = product.skus?.[0];
@@ -106,7 +106,7 @@ const ProductDetailPage: React.FC = () => {
         alert(`商品库存不足，当前仅剩 ${stock} 件`);
         return;
       }
-      navigate(`/checkout?skuId=${sku.id}&productId=${product.id}&quantity=1&price=${sku.price || product.price}&name=${encodeURIComponent(product.name)}&image=${encodeURIComponent(product.thumbnail || '')}`);
+      void navigate(`/checkout?skuId=${sku.id}&productId=${product.id}&quantity=1&price=${sku.price || product.price}&name=${encodeURIComponent(product.name)}&image=${encodeURIComponent(product.thumbnail || '')}`);
     } catch (err) {
       console.error('库存校验失败:', err);
       alert('库存校验失败，请稍后重试');

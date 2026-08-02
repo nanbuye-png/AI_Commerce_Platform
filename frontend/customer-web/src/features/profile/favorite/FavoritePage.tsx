@@ -65,7 +65,7 @@ const FavoritePage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={(e) => { e.stopPropagation(); remove(f.productId); }}
+              onClick={(e) => { e.stopPropagation(); void remove(f.productId); }}
               style={{
                 padding: '6px 12px', fontSize: '13px', color: 'var(--color-text-tertiary)',
                 background: 'none', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',

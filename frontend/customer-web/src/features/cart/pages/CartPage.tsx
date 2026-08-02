@@ -29,7 +29,7 @@ const CartPage: React.FC = () => {
           return;
         }
       }
-      navigate('/checkout');
+      void navigate('/checkout');
     } catch {
       alert('库存校验失败，请稍后重试');
     } finally {
@@ -41,7 +41,7 @@ const CartPage: React.FC = () => {
     let cancelled = false;
 
     if (!getToken()) {
-      navigate('/login');
+      void navigate('/login');
       return;
     }
 

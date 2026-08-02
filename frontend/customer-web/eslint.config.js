@@ -26,6 +26,9 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-unused-vars': 'off',
       '@typescript-eslint/no-floating-promises': 'error',
+      // react-hooks v7 新增的 React Compiler 迁移规则，对既有数据加载/事件处理模式误报严重，予以关闭
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/purity': 'off',
     },
   },
 ])

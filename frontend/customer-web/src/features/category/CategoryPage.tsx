@@ -31,7 +31,7 @@ const CategoryPage: React.FC = () => {
   }, []);
 
   const goCategory = (id: number) => {
-    navigate(`/products?categoryId=${id}`);
+    void navigate(`/products?categoryId=${id}`);
   };
 
   return (

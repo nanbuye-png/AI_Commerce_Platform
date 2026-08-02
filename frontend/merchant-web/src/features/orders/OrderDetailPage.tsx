@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { orderApi, type OrderVO, type CreatePaymentResult } from '../../api/order';
 
@@ -16,7 +16,7 @@ const OrderDetailPage: React.FC = () => {
   const [payment, setPayment] = useState<CreatePaymentResult | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!orderNo) return;
     orderApi.getDetail(orderNo).then((res) => {
       setOrder(res.data);
@@ -30,9 +30,9 @@ const OrderDetailPage: React.FC = () => {
       console.error('加载订单详情失败:', err);
       setError('订单不存在或加载失败');
     }).finally(() => setLoading(false));
-  };
+  }, [orderNo]);
 
-  useEffect(() => { load(); }, [orderNo]);
+  useEffect(() => { load(); }, [load]);
 
   const handleAccept = async () => {
     if (!orderNo) return;
@@ -41,7 +41,7 @@ const OrderDetailPage: React.FC = () => {
       await orderApi.acceptOrder(orderNo);
       alert('接单成功');
       load();
-    } catch (e) {
+    } catch {
       alert('接单失败');
     } finally {
       setActionLoading(false);
@@ -55,7 +55,7 @@ const OrderDetailPage: React.FC = () => {
       const res = await orderApi.createPayment(orderNo);
       setPayment(res.data);
       load();
-    } catch (e) {
+    } catch {
       alert('发起收款失败，请先接单');
     } finally {
       setActionLoading(false);

@@ -37,7 +37,6 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | undefined;
 
     const loadData = async () => {
       try {
@@ -68,11 +67,11 @@ const DashboardPage: React.FC = () => {
 
     // 首次加载 + 每 5 秒刷新（与 AI 中心关联实时刷新 AI 调用量）
     void loadData();
-    timer = setInterval(() => void loadData(), 5000);
+    const timer = setInterval(() => void loadData(), 5000);
 
     return () => {
       cancelled = true;
-      if (timer) clearInterval(timer);
+      clearInterval(timer);
     };
   }, []);
 
