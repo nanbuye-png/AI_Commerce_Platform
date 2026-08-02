@@ -277,9 +277,10 @@ public class CustomerProductServiceImpl implements CustomerProductService {
                 vo.setOriginalPrice(sku.getOriginalPrice());
                 vo.setWeight(sku.getWeight());
                 vo.setStatus(sku.getStatus());
-                vo.setStock(inventoryStockRepository.findBySkuId(sku.getId())
-                        .map(InventoryStock::getAvailableQuantity)
-                        .orElse(0));
+                // 无库存记录时不设置 stock（保持 null），前端可据此识别"存量商品库存未知"，
+                // 加购/下单走软校验；有记录时返回真实可售库存
+                inventoryStockRepository.findBySkuId(sku.getId())
+                        .ifPresent(inv -> vo.setStock(inv.getAvailableQuantity()));
                 return vo;
             }).collect(Collectors.toList()));
         }

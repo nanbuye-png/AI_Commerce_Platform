@@ -272,6 +272,10 @@ public class ProfileApplicationService {
 
     @Transactional(readOnly = true)
     public boolean checkStock(Long skuId, Integer quantity) {
+        // 无库存记录（存量商品）视为"库存未知"：放行，由下单时后端做真实库存校验
+        if (!inventoryStockRepository.existsBySkuId(skuId)) {
+            return true;
+        }
         int stock = getStock(skuId);
         return stock >= quantity;
     }

@@ -55,5 +55,6 @@ public class ProductDetailResponse {
         private BigDecimal weight;
         private String status;
         private Integer salesCount;
+        private Integer stock;
     }
 }

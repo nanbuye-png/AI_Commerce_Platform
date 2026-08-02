@@ -42,6 +42,12 @@ backend/commerce-platform/dependency-reduced-pom.xml
 .env.local
 .env.*.local
 
+# Tests
+# test files are not uploaded to the repository
+ai-service/pytest.ini
+ai-service/tests/
+backend/commerce-platform/src/test/
+
 # Docs - design documents only tracked locally
 docs/
 reports/

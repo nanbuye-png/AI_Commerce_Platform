@@ -70,6 +70,16 @@ export interface OrderVO {
   displayStatus?: string;
 }
 
+/** 支付详情响应（后端 PaymentDetailResponse） */
+export interface PaymentDetail {
+  paymentNo: string;
+  orderNo: string;
+  amount: number | string;
+  expireTime: string;
+  status: string;
+  qrToken: string;
+}
+
 export const orderService = {
   /**
    * 创建订单
@@ -106,5 +116,39 @@ export const orderService = {
   async orderDetail(orderNo: string): Promise<OrderVO> {
     const res = await request.get<ApiResult<OrderVO>, ApiResult<OrderVO>>(`/api/orders/${orderNo}`);
     return res.data;
+  },
+
+  /**
+   * 按订单号查询支付详情（商家已发起收款时返回）
+   * GET /api/payments/orders/{orderNo}
+   */
+  async paymentByOrder(orderNo: string): Promise<PaymentDetail> {
+    const res = await request.get<ApiResult<PaymentDetail>, ApiResult<PaymentDetail>>(`/api/payments/orders/${orderNo}`);
+    return res.data;
+  },
+
+  /**
+   * 按二维码 Token 查询支付详情
+   * GET /api/payments/qr/{qrToken}
+   */
+  async paymentDetail(qrToken: string): Promise<PaymentDetail> {
+    const res = await request.get<ApiResult<PaymentDetail>, ApiResult<PaymentDetail>>(`/api/payments/qr/${qrToken}`);
+    return res.data;
+  },
+
+  /**
+   * 确认支付（模拟扫码支付）
+   * POST /api/payments/qr/{qrToken}/pay
+   */
+  async payByToken(qrToken: string): Promise<void> {
+    await request.post<ApiResult<void>, ApiResult<void>>(`/api/payments/qr/${qrToken}/pay`);
+  },
+
+  /**
+   * 取消支付
+   * POST /api/payments/qr/{qrToken}/cancel
+   */
+  async cancelPayment(qrToken: string): Promise<void> {
+    await request.post<ApiResult<void>, ApiResult<void>>(`/api/payments/qr/${qrToken}/cancel`);
   },
 };

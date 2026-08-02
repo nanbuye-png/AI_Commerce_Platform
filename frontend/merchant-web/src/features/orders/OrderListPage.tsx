@@ -44,6 +44,14 @@ const OrderListPage: React.FC = () => {
     void loadOrders();
   }, [loadOrders]);
 
+  // 自动刷新：每 10 秒拉取一次最新订单（新订单实时可见）
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void loadOrders();
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [loadOrders]);
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-lg)' }}>

@@ -48,6 +48,14 @@ public class InventoryStockEntity extends BaseEntity {
     @Builder.Default
     private Integer reservedStock = 0;
 
+    /**
+     * 锁定库存（已废弃，V3 已合并到 reserved_stock）
+     * 数据库列 NOT NULL，实体保留映射以兼容建表约束，始终为 0。
+     */
+    @Column(name = "locked_stock", nullable = false)
+    @Builder.Default
+    private Integer lockedStock = 0;
+
     /** 已售库存 */
     @Column(name = "sold_stock", nullable = false)
     @Builder.Default

@@ -8,7 +8,7 @@ import com.commerce.platform.order.dto.request.MerchantOrderQueryRequest;
 import com.commerce.platform.order.dto.request.ShipOrderRequest;
 import com.commerce.platform.order.dto.response.OrderVO;
 import com.commerce.platform.order.event.OrderShippedEvent;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,7 +38,12 @@ public class MerchantOrderApplicationService {
 
     /**
      * 查询商家订单列表
+     * <p>
+     * 必须开启只读事务，否则 open-in-view=false 时访问懒加载
+     * items/address 会抛出 LazyInitializationException。
+     * </p>
      */
+    @Transactional(readOnly = true)
     public Page<OrderVO> getMerchantOrders(Long merchantId, MerchantOrderQueryRequest query) {
         long startTime = System.currentTimeMillis();
 
@@ -80,6 +85,7 @@ public class MerchantOrderApplicationService {
     /**
      * 查询商家订单详情
      */
+    @Transactional(readOnly = true)
     public OrderVO getMerchantOrderDetail(Long merchantId, String orderNo) {
         long startTime = System.currentTimeMillis();
 
@@ -97,7 +103,7 @@ public class MerchantOrderApplicationService {
     /**
      * 商家发货
      */
-    @Transactional(rollbackOn = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public void shipOrder(Long merchantId, String orderNo, ShipOrderRequest request) {
         long startTime = System.currentTimeMillis();
 
@@ -118,7 +124,7 @@ public class MerchantOrderApplicationService {
     /**
      * 商家更新备注
      */
-    @Transactional(rollbackOn = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public void updateMerchantRemark(Long merchantId, String orderNo, String remark) {
         long startTime = System.currentTimeMillis();
 

@@ -8,6 +8,9 @@ import com.commerce.platform.order.dto.request.CheckoutCreateOrderRequest;
 import com.commerce.platform.order.dto.request.CheckoutCreateOrderRequest.CheckoutItem;
 import com.commerce.platform.order.event.OrderCreatedEvent;
 import com.commerce.platform.payment.event.OrderCreatedForPaymentEvent;
+import com.commerce.platform.payment.service.MerchantQrPaymentService;
+import com.commerce.platform.product.entity.ProductSku;
+import com.commerce.platform.product.repository.ProductSkuRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -27,6 +31,8 @@ public class OrderCreationApplicationService {
 
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final ProductSkuRepository productSkuRepository;
+    private final MerchantQrPaymentService merchantQrPaymentService;
 
     @Transactional(rollbackFor = Exception.class)
     public String createOrder(CheckoutCreateOrderRequest request) {
@@ -36,11 +42,25 @@ public class OrderCreationApplicationService {
                 .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // 从购物车商品 SKU 解析真实 merchantId / storeId（替代原先硬编码 1L 的 Bug）
+        Long merchantId = 1L;
+        Long storeId = 1L;
+        List<Long> skuIds = request.getItems().stream()
+                .map(CheckoutItem::getSkuId)
+                .collect(Collectors.toList());
+        if (!skuIds.isEmpty()) {
+            ProductSku firstSku = productSkuRepository.findById(skuIds.get(0)).orElse(null);
+            if (firstSku != null && firstSku.getProduct() != null) {
+                merchantId = firstSku.getProduct().getMerchantId();
+                storeId = firstSku.getProduct().getStoreId();
+            }
+        }
+
         Order order = Order.builder()
                 .orderNo(orderNo)
                 .buyerId(request.getUserId())
-                .merchantId(1L)
-                .storeId(1L)
+                .merchantId(merchantId)
+                .storeId(storeId)
                 .totalAmount(totalAmount)
                 .productAmount(totalAmount)
                 .payAmount(totalAmount)
@@ -64,6 +84,15 @@ public class OrderCreationApplicationService {
         }
 
         orderRepository.save(order);
+
+        // 购物车结算链路同样自动接单 + 自动生成收款二维码（与"立即购买"链路一致）
+        try {
+            merchantQrPaymentService.acceptOrder(merchantId, orderNo);
+            merchantQrPaymentService.createPayment(merchantId, orderNo);
+            log.info("购物车结算订单已自动接单并生成收款二维码 - orderNo={}, merchantId={}", orderNo, merchantId);
+        } catch (Exception e) {
+            log.warn("购物车结算自动接单/发起收款失败，可手动处理 - orderNo={}, error={}", orderNo, e.getMessage());
+        }
 
         var orderItems = request.getItems().stream()
                 .map(item -> new OrderCreatedEvent.OrderItemDto(item.getSkuId(), item.getProductId(), item.getQuantity()))

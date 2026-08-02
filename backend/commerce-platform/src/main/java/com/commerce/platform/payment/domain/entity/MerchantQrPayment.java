@@ -2,6 +2,7 @@ package com.commerce.platform.payment.domain.entity;
 
 import com.commerce.platform.common.entity.BaseEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLRestriction;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -9,10 +10,6 @@ import java.time.LocalDateTime;
 
 /**
  * 商户二维码收款流水实体
- * <p>
- * 商家对订单发起收款后生成，包含二维码 Token 与过期时间。
- * 用户扫码支付成功后，订单进入 PAID。
- * </p>
  */
 @Entity
 @Table(name = "merchant_qr_payment", indexes = {
@@ -28,45 +25,35 @@ import java.time.LocalDateTime;
 @SQLRestriction("deleted = false")
 public class MerchantQrPayment extends BaseEntity {
 
-    /** 支付流水号 */
     @Column(name = "payment_no", nullable = false, unique = true, length = 32, updatable = false)
     private String paymentNo;
 
-    /** 订单号 */
     @Column(name = "order_no", nullable = false, length = 32, updatable = false)
     private String orderNo;
 
-    /** 买家 ID */
     @Column(name = "buyer_id", nullable = false, updatable = false)
     private Long buyerId;
 
-    /** 商家 ID */
     @Column(name = "merchant_id", nullable = false, updatable = false)
     private Long merchantId;
 
-    /** 收款金额 */
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
-    /** 二维码 Token（扫码时以此换取支付详情） */
     @Column(name = "qr_token", nullable = false, length = 64)
     private String qrToken;
 
-    /** 状态：WAITING / PAID / CANCELLED / EXPIRED */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
     private MerchantQrPaymentStatus status = MerchantQrPaymentStatus.WAITING;
 
-    /** 过期时间（默认 15 分钟后） */
     @Column(name = "expire_time", nullable = false)
     private LocalDateTime expireTime;
 
-    /** 支付完成时间 */
     @Column(name = "paid_time")
     private LocalDateTime paidTime;
 
-    /** 取消时间 */
     @Column(name = "cancelled_time")
     private LocalDateTime cancelledTime;
 
@@ -79,9 +66,6 @@ public class MerchantQrPayment extends BaseEntity {
     @Builder.Default
     private Boolean deleted = false;
 
-    // ========== 领域行为 ==========
-
-    /** 标记已支付 */
     public void markPaid() {
         if (this.status != MerchantQrPaymentStatus.WAITING) {
             throw new IllegalStateException("支付流水不是待支付状态，无法支付：paymentNo=" + paymentNo);
@@ -94,7 +78,6 @@ public class MerchantQrPayment extends BaseEntity {
         this.paidTime = LocalDateTime.now();
     }
 
-    /** 取消支付（用户主动取消） */
     public void cancel() {
         if (this.status != MerchantQrPaymentStatus.WAITING) {
             throw new IllegalStateException("支付流水不是待支付状态，无法取消：paymentNo=" + paymentNo);
@@ -103,8 +86,8 @@ public class MerchantQrPayment extends BaseEntity {
         this.cancelledTime = LocalDateTime.now();
     }
 
-    /** 标记过期 */
     public void markExpired() {
         this.status = MerchantQrPaymentStatus.EXPIRED;
     }
 }
+

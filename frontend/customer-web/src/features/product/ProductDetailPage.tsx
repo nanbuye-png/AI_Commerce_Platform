@@ -59,7 +59,9 @@ const ProductDetailPage: React.FC = () => {
       alert('该商品暂无可购买规格');
       return;
     }
-    if ((sku.stock ?? 0) < 1) {
+    // 软判断：仅当后端明确返回库存记录且库存为 0 时拦截；
+    // 存量商品无库存记录（stock 为 undefined）不拦截，由下单时后端做真实库存校验
+    if (sku.stock !== undefined && sku.stock !== null && sku.stock < 1) {
       alert('商品库存不足，暂无法加入购物车');
       return;
     }
@@ -195,7 +197,11 @@ const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const stock = product.skus?.[0]?.stock ?? 0;
+  // 软判断：无库存记录（undefined）视为"库存未知"，不置灰按钮
+  const skuStock = product.skus?.[0]?.stock;
+  const stock = skuStock ?? -1;
+  // 仅当明确有库存记录且为 0 时才禁用购买按钮
+  const noStock = skuStock !== undefined && skuStock !== null && skuStock <= 0;
 
   return (
     <div style={{ padding: 'var(--spacing-xl) var(--spacing-lg)', maxWidth: 960, margin: '0 auto' }}>
@@ -254,8 +260,8 @@ const ProductDetailPage: React.FC = () => {
           <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
             <span>★ {product.rating.toFixed(1)} ({product.reviewCount}条评价)</span>
             <span>已售 {product.salesCount}</span>
-            <span style={{ color: stock > 0 ? 'var(--color-success)' : 'var(--color-error)' }}>
-              库存 {stock > 0 ? stock : '无货'}
+            <span style={{ color: skuStock === undefined ? 'var(--color-text-tertiary)' : (stock > 0 ? 'var(--color-success)' : 'var(--color-error)') }}>
+              库存 {skuStock === undefined ? '未知' : (stock > 0 ? stock : '无货')}
             </span>
           </div>
 
@@ -313,7 +319,7 @@ const ProductDetailPage: React.FC = () => {
             </button>
             <button
               onClick={handleAddToCart}
-              disabled={adding || stock <= 0}
+              disabled={adding || noStock}
               style={{
                 flex: 1,
                 height: 48,
@@ -323,15 +329,15 @@ const ProductDetailPage: React.FC = () => {
                 fontSize: '16px',
                 fontWeight: 500,
                 border: 'none',
-                cursor: adding || stock <= 0 ? 'not-allowed' : 'pointer',
-                opacity: adding || stock <= 0 ? 0.6 : 1,
+                cursor: adding || noStock ? 'not-allowed' : 'pointer',
+                opacity: adding || noStock ? 0.6 : 1,
               }}
             >
               {added ? '已加入 ✓' : '加入购物车'}
             </button>
             <button
               onClick={handleBuyNow}
-              disabled={buying || stock <= 0}
+              disabled={buying || noStock}
               style={{
                 flex: 1,
                 height: 48,
@@ -341,8 +347,8 @@ const ProductDetailPage: React.FC = () => {
                 fontSize: '16px',
                 fontWeight: 500,
                 border: 'none',
-                cursor: buying || stock <= 0 ? 'not-allowed' : 'pointer',
-                opacity: buying || stock <= 0 ? 0.6 : 1,
+                cursor: buying || noStock ? 'not-allowed' : 'pointer',
+                opacity: buying || noStock ? 0.6 : 1,
               }}
             >
               {buying ? '校验中...' : '立即购买'}

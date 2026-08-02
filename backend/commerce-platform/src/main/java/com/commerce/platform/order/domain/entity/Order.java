@@ -101,6 +101,14 @@ public class Order extends BaseEntity {
     @Column(name = "cancelled_time")
     private LocalDateTime cancelledTime;
 
+    /** 商家接单时间 */
+    @Column(name = "accept_time")
+    private LocalDateTime acceptTime;
+
+    /** 商家发起支付（生成商户二维码）时间 */
+    @Column(name = "payment_init_time")
+    private LocalDateTime paymentInitTime;
+
     @Version
     @Column(nullable = false)
     @Builder.Default
@@ -169,6 +177,27 @@ public class Order extends BaseEntity {
         }
         this.orderStatus = OrderStatus.CANCELLED;
         this.cancelledTime = LocalDateTime.now();
+    }
+
+    /**
+     * 商家接单
+     * 仅 PENDING_PAYMENT 状态可接单，接单不改变订单状态，仅记录接单时间。
+     */
+    public void accept() {
+        assertValidStatus(OrderStatus.PENDING_PAYMENT, "接单");
+        this.acceptTime = LocalDateTime.now();
+    }
+
+    /**
+     * 商家发起支付（生成商户二维码）
+     * 仅 PENDING_PAYMENT 且已接单可发起支付。
+     */
+    public void initPayment() {
+        assertValidStatus(OrderStatus.PENDING_PAYMENT, "发起支付");
+        if (this.acceptTime == null) {
+            throw new InvalidOrderStatusException(this.orderNo, this.orderStatus.name(), "发起支付（需先接单）");
+        }
+        this.paymentInitTime = LocalDateTime.now();
     }
 
     /**

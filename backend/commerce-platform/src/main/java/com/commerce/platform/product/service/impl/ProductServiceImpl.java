@@ -1,6 +1,8 @@
 package com.commerce.platform.product.service.impl;
 
 import com.commerce.platform.common.exception.BusinessException;
+import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
+import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.product.dto.merchant.*;
 import com.commerce.platform.product.entity.Product;
 import com.commerce.platform.product.entity.ProductImage;
@@ -36,6 +38,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final ProductCodeGenerator productCodeGenerator;
+    private final InventoryStockRepository inventoryStockRepository;
 
     // 商品域错误码起始值
     private static final int PRODUCT_NOT_FOUND = 30001;
@@ -135,6 +138,22 @@ public class ProductServiceImpl implements ProductService {
 
         // Cascade 保存所有实体
         Product savedProduct = productRepository.save(product);
+
+        // 按 SKU 初始化库存记录（库存由 inventory 表统一管理）
+        for (ProductSku sku : savedProduct.getSkus()) {
+            int initialStock = request.getSkus().stream()
+                    .filter(r -> r.getSkuCode().equals(sku.getSkuCode()))
+                    .map(ProductSkuRequest::getStock)
+                    .filter(stock -> stock != null)
+                    .findFirst()
+                    .orElse(0);
+            inventoryStockRepository.save(InventoryStock.create(
+                    savedProduct.getId(),
+                    sku.getId(),
+                    initialStock
+            ));
+        }
+
         log.info("Product created successfully, id: {}, code: {}", savedProduct.getId(), savedProduct.getProductCode());
         return savedProduct.getId();
     }
@@ -254,6 +273,34 @@ public class ProductServiceImpl implements ProductService {
         }
 
         productRepository.save(product);
+
+        // 同步库存：新 SKU 创建库存记录，已有 SKU 按请求更新可售库存
+        if (request.getSkus() != null) {
+            for (ProductSkuRequest skuReq : request.getSkus()) {
+                Integer stock = skuReq.getStock();
+                if (stock == null) {
+                    continue; // 未传库存则保留现有库存
+                }
+                product.getSkus().stream()
+                        .filter(s -> s.getSkuCode().equals(skuReq.getSkuCode()))
+                        .findFirst()
+                        .ifPresent(sku -> {
+                            inventoryStockRepository.findBySkuId(sku.getId())
+                                    .ifPresentOrElse(
+                                            inv -> {
+                                                int current = inv.getAvailableQuantity();
+                                                if (stock != current) {
+                                                    inv.adjust(stock - current);
+                                                    inventoryStockRepository.save(inv);
+                                                }
+                                            },
+                                            () -> inventoryStockRepository.save(InventoryStock.create(
+                                                    productId, sku.getId(), stock))
+                                    );
+                        });
+            }
+        }
+
         log.info("Product updated successfully, id: {}", productId);
     }
 
@@ -378,6 +425,9 @@ public class ProductServiceImpl implements ProductService {
                 skuResp.setWeight(sku.getWeight());
                 skuResp.setStatus(sku.getStatus());
                 skuResp.setSalesCount(sku.getSalesCount());
+                skuResp.setStock(inventoryStockRepository.findBySkuId(sku.getId())
+                        .map(InventoryStock::getAvailableQuantity)
+                        .orElse(0));
                 return skuResp;
             }).collect(Collectors.toList()));
         }

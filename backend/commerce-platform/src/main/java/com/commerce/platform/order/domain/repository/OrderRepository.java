@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -35,4 +36,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     // ---- Admin queries ----
     Page<Order> findByOrderStatus(OrderStatus orderStatus, Pageable pageable);
     Optional<Order> findByOrderNoAndOrderStatus(String orderNo, OrderStatus orderStatus);
+
+    // ---- Cleanup queries ----
+    List<Order> findByOrderStatusAndCreatedTimeBefore(OrderStatus orderStatus, LocalDateTime createdTime);
 }

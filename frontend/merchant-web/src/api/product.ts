@@ -41,6 +41,7 @@ export interface ProductSkuVO {
   weight?: number;
   attributesJson: string;
   status: string;
+  stock?: number;
 }
 
 /** 后端图片 VO */

@@ -76,7 +76,7 @@ export interface Product {
   readonly rating: number;
   readonly reviewCount: number;
   readonly salesCount: number;
-  readonly stock: number;
+  readonly stock?: number;
   readonly status: ProductStatus;
   readonly specs?: ProductSpecGroup[];
   readonly tags?: string[];

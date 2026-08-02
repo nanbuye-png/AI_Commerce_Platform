@@ -94,7 +94,7 @@ export interface ProductView {
   salesCount: number;
   rating: number;
   reviewCount: number;
-  stock: number;
+  stock?: number;
   specs?: { name: string; options: { name: string; value: string }[] }[];
   skus?: ProductSkuView[];
 }
@@ -134,7 +134,11 @@ function toDetailView(p: BackendProductDetail): ProductView {
     .map((s) => Number(s.originalPrice))
     .filter((v) => Number.isFinite(v) && v > 0);
   const originalPrice = originalPrices.length ? Math.min(...originalPrices) : undefined;
-  const stock = skus.length;
+  // 商品总库存：仅当有任何 SKU 存在库存记录时才求和；
+  // 若所有 SKU 均缺失库存记录（存量商品），返回 undefined 供前端"软判断"不拦截加购
+  const hasAnyStockRecord = skus.some((s) => s.stock !== undefined && s.stock !== null);
+  const totalStock = skus.reduce((sum, s) => sum + (Number(s.stock) || 0), 0);
+  const stock = hasAnyStockRecord ? totalStock : undefined;
 
   const images = (p.images ?? [])
     .slice()
@@ -176,7 +180,7 @@ function toDetailView(p: BackendProductDetail): ProductView {
       skuCode: s.skuCode,
       price: Number(s.price) || 0,
       originalPrice: s.originalPrice ? Number(s.originalPrice) : undefined,
-      stock: s.stock ?? 0,
+      stock: s.stock,
     })),
   };
 }

@@ -10,9 +10,10 @@ import com.commerce.platform.order.dto.request.CreateOrderRequest;
 import com.commerce.platform.order.dto.request.OrderQueryRequest;
 import com.commerce.platform.order.dto.response.CreateOrderResponse;
 import com.commerce.platform.order.dto.response.OrderVO;
+import com.commerce.platform.payment.service.MerchantQrPaymentService;
 import com.commerce.platform.product.entity.ProductSku;
 import com.commerce.platform.product.repository.ProductSkuRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -42,11 +43,12 @@ public class OrderApplicationService {
     private final OrderRepository orderRepository;
     private final ProductSkuRepository productSkuRepository;
     private final InventoryStockRepository inventoryStockRepository;
+    private final MerchantQrPaymentService merchantQrPaymentService;
 
     /**
      * 创建订单
      */
-    @Transactional(rollbackOn = Exception.class)
+    @Transactional(rollbackFor = Exception.class)
     public CreateOrderResponse placeOrder(CreateOrderRequest request, Long buyerId) {
         long startTime = System.currentTimeMillis();
 
@@ -100,6 +102,16 @@ public class OrderApplicationService {
                 "科技园南区A栋", "518000");
         order = orderRepository.save(order);
 
+        // 下单成功 → 自动接单 → 自动生成商户收款二维码（记录 qrToken，供用户端"去付款"）
+        try {
+            merchantQrPaymentService.acceptOrder(merchantId, order.getOrderNo());
+            merchantQrPaymentService.createPayment(merchantId, order.getOrderNo());
+            log.info("订单已自动接单并生成收款二维码 - orderNo={}, merchantId={}", order.getOrderNo(), merchantId);
+        } catch (Exception e) {
+            // 自动接单/收款失败不应阻塞下单主流程，仅记录日志（商家仍可手动接单/发起收款）
+            log.warn("自动接单/发起收款失败，可手动处理 - orderNo={}, error={}", order.getOrderNo(), e.getMessage());
+        }
+
         long elapsed = System.currentTimeMillis() - startTime;
         log.info("订单创建成功 - orderNo={}, customerId={}, amount={}, 耗时={}ms",
                 order.getOrderNo(), buyerId, order.getPayAmount(), elapsed);
@@ -114,7 +126,12 @@ public class OrderApplicationService {
 
     /**
      * 查询我的订单列表
+     * <p>
+     * 必须开启只读事务，否则 open-in-view=false 时访问懒加载
+     * items/address 会抛出 LazyInitializationException。
+     * </p>
      */
+    @Transactional(readOnly = true)
     public Page<OrderVO> getMyOrders(Long buyerId, OrderQueryRequest query) {
         long startTime = System.currentTimeMillis();
 
@@ -156,6 +173,7 @@ public class OrderApplicationService {
     /**
      * 查询订单详情
      */
+    @Transactional(readOnly = true)
     public OrderVO getOrderDetail(Long buyerId, String orderNo) {
         long startTime = System.currentTimeMillis();
 

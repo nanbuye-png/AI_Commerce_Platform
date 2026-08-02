@@ -43,7 +43,7 @@ const ProductEditPage: React.FC = () => {
           setSkuCode(sku.skuCode);
           setPrice(String(sku.price));
           setOriginalPrice(sku.originalPrice ? String(sku.originalPrice) : '');
-          setStock(sku.weight ? String(sku.weight) : '');
+          setStock(sku.stock != null ? String(sku.stock) : '');
         }
       })
       .catch((err) => {
