@@ -45,11 +45,11 @@ class MerchantAiControllerTest {
     void streamsAiEventsForMerchant() throws Exception {
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            java.util.function.Consumer<String> consumer = invocation.getArgument(1);
+            java.util.function.Consumer<String> consumer = invocation.getArgument(2);
             consumer.accept("event: message\ndata: {\"type\":\"token\",\"content\":\"好\"}\n\n");
             consumer.accept("event: done\ndata: {\"conversation_id\":\"conv_1\",\"message_id\":\"msg_1\"}\n\n");
             return null;
-        }).when(aiGatewayService).stream(any(ChatStreamRequest.class), any());
+        }).when(aiGatewayService).stream(any(ChatStreamRequest.class), any(String.class), any());
 
         mockMvc.perform(post("/api/merchant/ai/chat/stream")
                         .header("Authorization", "Bearer " + token("ROLE_MERCHANT", JwtUtil.ClientType.MERCHANT_WEB))
@@ -70,7 +70,7 @@ class MerchantAiControllerTest {
                         .content("{\"message\":\"hello\"}"))
                 .andExpect(status().isForbidden());
 
-        verify(aiGatewayService, never()).stream(any(), any());
+        verify(aiGatewayService, never()).stream(any(ChatStreamRequest.class), any(String.class), any());
     }
 
     @Test
@@ -81,7 +81,7 @@ class MerchantAiControllerTest {
                         .content("{\"message\":\"\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(aiGatewayService, never()).stream(any(), any());
+        verify(aiGatewayService, never()).stream(any(ChatStreamRequest.class), any(String.class), any());
     }
 
     private String token(String role, JwtUtil.ClientType clientType) {
