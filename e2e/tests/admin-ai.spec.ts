@@ -10,7 +10,7 @@ test('admin AI center reflects a completed product search', async ({ browser }) 
   await customer.goto('/login');
   await customer.getByLabel('账号').fill(customerAccount);
   await customer.getByLabel('密码').fill(customerPassword);
-  await customer.getByRole('button', { name: '登录' }).click();
+  await customer.getByTestId('login-submit').click();
   await customer.goto('/ai');
   await customer.getByPlaceholder('输入你想了解的商品信息...').fill('帮我找500到1000元的耳机');
   await customer.getByRole('button', { name: '发送消息' }).click();
@@ -21,7 +21,7 @@ test('admin AI center reflects a completed product search', async ({ browser }) 
   await admin.goto('/login');
   await admin.getByLabel('账号').fill(adminAccount);
   await admin.getByLabel('密码').fill(adminPassword);
-  await admin.getByRole('button', { name: '登录' }).click();
+  await admin.getByTestId('login-submit').click();
   await admin.goto('/ai-center');
   await expect(admin.getByText('AI 中心')).toBeVisible();
   await expect(admin.getByText('总调用')).toBeVisible();

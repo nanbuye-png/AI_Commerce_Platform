@@ -99,7 +99,7 @@ const Login: React.FC = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+              <Button data-testid="login-submit" type="primary" htmlType="submit" block size="large" loading={loading}>
                 登录
               </Button>
             </Form.Item>

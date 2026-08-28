@@ -8,7 +8,7 @@ test.describe('customer AI commerce flow', () => {
     await page.goto('/login');
     await page.getByLabel('账号').fill(customerAccount);
     await page.getByLabel('密码').fill(customerPassword);
-    await page.getByRole('button', { name: '登录' }).click();
+    await page.getByTestId('login-submit').click();
     await expect(page).toHaveURL(/\/$/);
 
     await page.goto('/ai');
