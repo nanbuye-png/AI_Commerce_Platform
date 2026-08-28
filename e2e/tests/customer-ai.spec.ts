@@ -16,7 +16,7 @@ test.describe('customer AI commerce flow', () => {
     await page.getByRole('button', { name: '发送消息' }).click();
 
     await expect(page.getByText(/为你找到/)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText('星云降噪蓝牙耳机')).toBeVisible();
+    await expect(page.getByText('星云降噪蓝牙耳机', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: '加入购物车' }).first().click();
     await expect(page.getByRole('button', { name: '确认加入购物车' })).toBeVisible();
