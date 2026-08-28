@@ -8,6 +8,7 @@ const ProfilePage: React.FC = () => {
 
   const menuItems = [
     { label: '我的订单', icon: '📦', path: '/orders' },
+    { label: '退款/退货', icon: '↩️', path: '/after-sales' },
     { label: '收货地址', icon: '📍', path: '/profile/address' },
     { label: '优惠券', icon: '🎫', path: '/profile/coupons' },
     { label: '收藏夹', icon: '❤️', path: '/profile/favorites' },

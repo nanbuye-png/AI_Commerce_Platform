@@ -141,6 +141,8 @@ public class OrderDomainService {
                 .shippingTime(order.getShippingTime())
                 .completedTime(order.getCompletedTime())
                 .cancelledTime(order.getCancelledTime())
+                .logisticsCompany(order.getLogisticsCompany())
+                .trackingNo(order.getTrackingNo())
                 .createdTime(order.getCreatedTime());
 
         // 计算可执行操作
@@ -216,6 +218,8 @@ public class OrderDomainService {
                 .cancelledTime(order.getCancelledTime())
                 .createdTime(order.getCreatedTime())
                 .updatedTime(order.getUpdatedTime())
+                .logisticsCompany(order.getLogisticsCompany())
+                .trackingNo(order.getTrackingNo())
                 .displayStatus(getDisplayStatus(order));
 
         // 构建 orderItemVOs

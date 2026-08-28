@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { orderApi, type OrderVO } from '../../api/order';
 import { productApi } from '../../api/product';
 import { inventoryApi } from '../../api/inventory';
+import { refundApi } from '../../api/refund';
+import { returnApi } from '../../api/return';
 
 const StatCard: React.FC<{ title: string; value: string; change: string; color: string }> = ({ title, value, change, color }) => (
   <div style={{ background: 'var(--color-bg-primary)', borderRadius: 'var(--radius-md)', padding: 'var(--spacing-lg)', boxShadow: 'var(--shadow-sm)' }}>
@@ -23,6 +25,8 @@ const DashboardPage: React.FC = () => {
   const [orderTotal, setOrderTotal] = useState(0);
   const [productTotal, setProductTotal] = useState(0);
   const [inventoryTotal, setInventoryTotal] = useState(0);
+  const [pendingRefundTotal, setPendingRefundTotal] = useState(0);
+  const [pendingReturnTotal, setPendingReturnTotal] = useState(0);
   const [recentOrders, setRecentOrders] = useState<OrderVO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,10 +34,12 @@ const DashboardPage: React.FC = () => {
     let cancelled = false;
     const loadData = async () => {
       try {
-        const [orderRes, productRes, inventoryRes] = await Promise.allSettled([
+        const [orderRes, productRes, inventoryRes, refundRes, returnRes] = await Promise.allSettled([
           orderApi.list({ page: 1, pageSize: 5 }),
           productApi.list({ page: 1, pageSize: 1 }),
           inventoryApi.list({ page: 1, pageSize: 1 }),
+          refundApi.list({ page: 0, pageSize: 1, status: 'REQUESTED' }),
+          returnApi.list({ page: 0, pageSize: 1, status: 'REQUESTED' }),
         ]);
 
         if (cancelled) return;
@@ -48,6 +54,12 @@ const DashboardPage: React.FC = () => {
         // 库存接口可能因分页参数差异失败，静默处理
         if (inventoryRes.status === 'fulfilled') {
           setInventoryTotal(inventoryRes.value.data?.totalElements ?? 0);
+        }
+        if (refundRes.status === 'fulfilled') {
+          setPendingRefundTotal(refundRes.value.data?.totalElements ?? 0);
+        }
+        if (returnRes.status === 'fulfilled') {
+          setPendingReturnTotal(returnRes.value.data?.totalElements ?? 0);
         }
       } catch (err) {
         console.error('加载仪表盘数据失败:', err);
@@ -70,7 +82,8 @@ const DashboardPage: React.FC = () => {
         <StatCard title="订单总数" value={String(orderTotal)} change="全部状态订单" color="var(--color-info)" />
         <StatCard title="商品总数" value={String(productTotal)} change="在架商品" color="var(--color-accent)" />
         <StatCard title="库存记录" value={String(inventoryTotal)} change="SKU 库存" color="var(--color-success)" />
-        <StatCard title="待处理退款" value="—" change="前往退款管理查看" color="var(--color-warning)" />
+        <StatCard title="待处理退款" value={String(pendingRefundTotal)} change="待审核退款申请" color="var(--color-warning)" />
+        <StatCard title="待处理退货" value={String(pendingReturnTotal)} change="待审核退货申请" color="var(--color-info)" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--spacing-lg)' }}>

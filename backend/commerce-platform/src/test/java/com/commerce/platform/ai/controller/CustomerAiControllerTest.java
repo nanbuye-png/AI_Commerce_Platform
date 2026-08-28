@@ -15,12 +15,16 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.UUID;
 
 @WebMvcTest(CustomerAiController.class)
 @Import({SecurityConfig.class, JwtProperties.class, JwtUtil.class})
@@ -30,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "jwt.admin-web-secret=test-admin-web-secret-with-minimum-32-bytes",
         "jwt.expiration=3600000"
 })
+@SuppressWarnings("null")
 class CustomerAiControllerTest {
 
     @Autowired
@@ -45,21 +50,25 @@ class CustomerAiControllerTest {
     void streamsAiEventsForCustomer() throws Exception {
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            java.util.function.Consumer<String> consumer = invocation.getArgument(1);
+            java.util.function.Consumer<String> consumer = invocation.getArgument(2);
             consumer.accept("event: message\ndata: {\"type\":\"token\",\"content\":\"好\"}\n\n");
             consumer.accept("event: done\ndata: {\"conversation_id\":\"conv_1\",\"message_id\":\"msg_1\"}\n\n");
             return null;
-        }).when(aiGatewayService).stream(any(ChatStreamRequest.class), any());
+        }).when(aiGatewayService).stream(any(ChatStreamRequest.class), any(String.class), any());
 
         mockMvc.perform(post("/api/customer/ai/chat/stream")
                         .header("Authorization", "Bearer " + token("ROLE_CUSTOMER", JwtUtil.ClientType.CUSTOMER_WEB))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"message\":\"推荐耳机\",\"conversation_id\":\"conv_1\"}"))
+                        .content("{\"message\":\"推荐耳机\",\"conversation_id\":\"conv_1\",\"user_id\":999}"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM))
                 .andExpect(content().string(
                         "event: message\ndata: {\"type\":\"token\",\"content\":\"好\"}\n\n"
                                 + "event: done\ndata: {\"conversation_id\":\"conv_1\",\"message_id\":\"msg_1\"}\n\n"));
+
+        verify(aiGatewayService).stream(argThat(request ->
+                request.userId().equals(1L) && request.message().equals("推荐耳机")
+                        && request.conversationId().equals("conv_1")), any(String.class), any());
     }
 
     @Test
@@ -70,7 +79,7 @@ class CustomerAiControllerTest {
                         .content("{\"message\":\"hello\"}"))
                 .andExpect(status().isForbidden());
 
-        verify(aiGatewayService, never()).stream(any(), any());
+        verify(aiGatewayService, never()).stream(any(), any(String.class), any());
     }
 
     @Test
@@ -81,10 +90,41 @@ class CustomerAiControllerTest {
                         .content("{\"message\":\"\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(aiGatewayService, never()).stream(any(), any());
+        verify(aiGatewayService, never()).stream(any(), any(String.class), any());
+    }
+
+    @Test
+    void replacesInvalidRequestIdBeforeCallingAiService() throws Exception {
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            java.util.function.Consumer<String> consumer = invocation.getArgument(2);
+            consumer.accept("event: done\ndata: {\"conversation_id\":\"conv_1\",\"message_id\":\"msg_1\"}\n\n");
+            return null;
+        }).when(aiGatewayService).stream(any(ChatStreamRequest.class), any(String.class), any());
+
+        mockMvc.perform(post("/api/customer/ai/chat/stream")
+                        .header("Authorization", "Bearer " + token("ROLE_CUSTOMER", JwtUtil.ClientType.CUSTOMER_WEB))
+                        .header("X-Request-Id", "not-a-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"hello\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Request-Id", org.hamcrest.Matchers.matchesPattern(
+                        "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")));
+
+        verify(aiGatewayService).stream(any(ChatStreamRequest.class),
+                argThat(requestId -> !requestId.equals("not-a-uuid") && isUuid(requestId)), any());
     }
 
     private String token(String role, JwtUtil.ClientType clientType) {
         return jwtUtil.generateToken(1L, "tester", java.util.List.of(role), clientType);
+    }
+
+    private boolean isUuid(String value) {
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 }

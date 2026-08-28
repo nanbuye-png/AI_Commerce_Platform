@@ -1,6 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
-import AuthLayout from '../layouts/AuthLayout';
 import ProtectedRoute from './ProtectedRoute';
 
 // Pages (Sprint 1 - preserved)
@@ -13,6 +12,8 @@ import HomePage from '../features/home/HomePage';
 import ProductListPage from '../features/product/ProductListPage';
 import ProductDetailPage from '../features/product/ProductDetailPage';
 import OrderPage from '../features/order/OrderPage';
+import OrderDetailPage from '../features/order/OrderDetailPage';
+import AfterSalesPage from '../features/order/AfterSalesPage';
 import ProfilePage from '../features/profile/ProfilePage';
 import AddressPage from '../features/profile/address/AddressPage';
 import CouponPage from '../features/profile/coupon/CouponPage';
@@ -30,22 +31,14 @@ import CartPage from '../features/cart/pages/CartPage';
 import CheckoutPage from '../features/checkout/CheckoutPage';
 
 const router = createBrowserRouter([
-  // Auth routes (no layout wrapper needed, but using AuthLayout for consistency)
+  // Auth routes (页面自带全屏居中容器，直接渲染，与 merchant/admin 一致)
   {
     path: '/login',
-    element: (
-      <AuthLayout>
-        <Login />
-      </AuthLayout>
-    ),
+    element: <Login />,
   },
   {
     path: '/register',
-    element: (
-      <AuthLayout>
-        <Register />
-      </AuthLayout>
-    ),
+    element: <Register />,
   },
 
   // Main layout routes (public)
@@ -108,6 +101,22 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <OrderPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'orders/:orderNo',
+        element: (
+          <ProtectedRoute>
+            <OrderDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'after-sales',
+        element: (
+          <ProtectedRoute>
+            <AfterSalesPage />
           </ProtectedRoute>
         ),
       },

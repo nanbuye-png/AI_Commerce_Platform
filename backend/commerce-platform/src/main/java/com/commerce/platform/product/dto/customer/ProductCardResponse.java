@@ -19,6 +19,9 @@ public class ProductCardResponse {
     private String categoryName;
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
+    private Long defaultSkuId;
+    private BigDecimal defaultSkuPrice;
+    private Integer defaultSkuStock;
     private String coverImage;
     private Integer salesCount;
     private LocalDateTime createdTime;

@@ -69,6 +69,18 @@ public class CustomerOrderController {
         return Result.success(orderApplicationService.getOrderDetail(customerId, orderNo));
     }
 
+    @PostMapping("/{orderNo}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public Result<OrderVO> cancelOrder(Authentication authentication, @PathVariable String orderNo) {
+        return Result.success(orderApplicationService.cancelOrder(getCustomerId(authentication), orderNo));
+    }
+
+    @PostMapping("/{orderNo}/confirm")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public Result<OrderVO> confirmReceipt(Authentication authentication, @PathVariable String orderNo) {
+        return Result.success(orderApplicationService.confirmReceipt(getCustomerId(authentication), orderNo));
+    }
+
     /**
      * 从 Authentication 中获取客户 ID
      */

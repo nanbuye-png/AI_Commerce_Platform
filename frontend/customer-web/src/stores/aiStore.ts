@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AIMessage } from '../services/ai/aiTypes';
+import type { AIMessage, AISendMessageOptions } from '../services/ai/aiTypes';
 import { aiClient } from '../services/ai/aiClient';
 
 interface AIState {
@@ -9,7 +9,7 @@ interface AIState {
   error: string | null;
 
   initializeSession: () => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, options?: AISendMessageOptions) => Promise<void>;
   cancelStream: () => void;
   clearConversation: () => void;
   setError: (error: string | null) => void;
@@ -36,7 +36,7 @@ const useAIStore = create<AIState>((set, get) => ({
     }
   },
 
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string, options?: AISendMessageOptions) => {
     const { loading, messages } = get();
     if (loading) return;
 
@@ -83,17 +83,25 @@ const useAIStore = create<AIState>((set, get) => ({
             set((state) => ({
               messages: state.messages.map((message) => {
                 if (message.id !== assistantMessageId) return message;
+                if (meta.type === 'add_to_cart_confirmation' || meta.type === 'add_to_cart_result') {
+                  return {
+                    ...message,
+                    metadata: {
+                      ...message.metadata,
+                      actionType: 'general_chat',
+                      addToCart: {
+                        type: meta.type,
+                        skuId: meta.sku_id,
+                        quantity: meta.quantity,
+                        success: 'success' in meta ? meta.success : undefined,
+                        message: 'message' in meta ? meta.message : undefined,
+                      },
+                    },
+                  };
+                }
                 const productSearch = meta.type === 'product_search'
-                  ? {
-                      query: meta.query,
-                      products: meta.products,
-                      total: meta.total,
-                    }
-                  : {
-                      products: [],
-                      total: 0,
-                      error: meta.message,
-                    };
+                  ? { query: meta.query, products: meta.products, total: meta.total }
+                  : { products: [], total: 0, error: meta.message };
                 return {
                   ...message,
                   metadata: {
@@ -114,6 +122,7 @@ const useAIStore = create<AIState>((set, get) => ({
             }));
           },
         },
+        options,
         controller.signal,
       );
       set({ loading: false });

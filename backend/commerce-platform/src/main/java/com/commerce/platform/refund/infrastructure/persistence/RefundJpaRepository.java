@@ -10,4 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface RefundJpaRepository extends JpaRepository<RefundEntity, Long>,
         JpaSpecificationExecutor<RefundEntity> {
+
+    java.util.List<RefundEntity> findByUserIdOrderByCreatedAtDesc(Long userId);
+    java.util.List<RefundEntity> findByOrderId(Long orderId);
 }

@@ -109,6 +109,12 @@ public class Order extends BaseEntity {
     @Column(name = "payment_init_time")
     private LocalDateTime paymentInitTime;
 
+    @Column(name = "logistics_company", length = 100)
+    private String logisticsCompany;
+
+    @Column(name = "tracking_no", length = 100)
+    private String trackingNo;
+
     @Version
     @Column(nullable = false)
     @Builder.Default

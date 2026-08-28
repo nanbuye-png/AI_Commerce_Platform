@@ -74,6 +74,7 @@ class OpenAiCompatibleLlmProvider:
                         "2. 如果有商品，按价格、销量或用户需求推荐最合适的几件，并简述名称、价格和推荐理由。\n"
                         "3. 不要编造商品、价格、库存或评分。\n"
                         "4. 回答使用简洁自然的中文。\n"
+                        "5. 如果上下文包含 add_to_cart.success=true，明确告知商品已加入购物车。\n"
                         f"{serialized_context}"
                     ),
                 }

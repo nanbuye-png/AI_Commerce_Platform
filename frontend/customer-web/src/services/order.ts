@@ -67,7 +67,39 @@ export interface OrderVO {
   canPay?: boolean;
   canCancel?: boolean;
   canConfirm?: boolean;
+  canRefund?: boolean;
+  logisticsCompany?: string;
+  trackingNo?: string;
+  shippingTime?: string;
+  receivedTime?: string;
   displayStatus?: string;
+}
+
+export interface RefundRecord {
+  id: number;
+  orderId: number;
+  userId: number;
+  amount: number | string;
+  reason: string;
+  status: string;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export interface ReturnRecord {
+  id: number;
+  orderId: number;
+  userId: number;
+  refundId?: number | null;
+  reason: string;
+  status: string;
+  createdAt: string;
+  approvedAt?: string | null;
+  completedAt?: string | null;
+  logisticsCompany?: string;
+  trackingNo?: string;
+  shippedAt?: string | null;
+  receivedAt?: string | null;
 }
 
 /** 支付详情响应（后端 PaymentDetailResponse） */
@@ -150,5 +182,40 @@ export const orderService = {
    */
   async cancelPayment(qrToken: string): Promise<void> {
     await request.post<ApiResult<void>, ApiResult<void>>(`/api/payments/qr/${qrToken}/cancel`);
+  },
+
+  async cancelOrder(orderNo: string): Promise<OrderVO> {
+    const res = await request.post<ApiResult<OrderVO>, ApiResult<OrderVO>>(`/api/orders/${orderNo}/cancel`);
+    return res.data;
+  },
+
+  async confirmReceipt(orderNo: string): Promise<OrderVO> {
+    const res = await request.post<ApiResult<OrderVO>, ApiResult<OrderVO>>(`/api/orders/${orderNo}/confirm`);
+    return res.data;
+  },
+
+  async refunds(): Promise<RefundRecord[]> {
+    const res = await request.get<ApiResult<RefundRecord[]>, ApiResult<RefundRecord[]>>('/api/after-sales/refunds');
+    return res.data;
+  },
+
+  async returns(): Promise<ReturnRecord[]> {
+    const res = await request.get<ApiResult<ReturnRecord[]>, ApiResult<ReturnRecord[]>>('/api/after-sales/returns');
+    return res.data;
+  },
+
+  async requestRefund(orderNo: string, reason: string): Promise<RefundRecord> {
+    const res = await request.post<ApiResult<RefundRecord>, ApiResult<RefundRecord>>(`/api/after-sales/orders/${orderNo}/refund`, { reason });
+    return res.data;
+  },
+
+  async requestReturn(orderNo: string, reason: string): Promise<ReturnRecord> {
+    const res = await request.post<ApiResult<ReturnRecord>, ApiResult<ReturnRecord>>(`/api/after-sales/orders/${orderNo}/return`, { reason });
+    return res.data;
+  },
+
+  async submitReturnShipment(id: number, logisticsCompany: string, trackingNo: string): Promise<ReturnRecord> {
+    const res = await request.post<ApiResult<ReturnRecord>, ApiResult<ReturnRecord>>(`/api/after-sales/returns/${id}/ship`, { logisticsCompany, trackingNo });
+    return res.data;
   },
 };

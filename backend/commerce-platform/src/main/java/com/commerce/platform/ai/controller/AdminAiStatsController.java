@@ -3,13 +3,17 @@ package com.commerce.platform.ai.controller;
 import com.commerce.platform.ai.config.AiGatewayProperties;
 import com.commerce.platform.ai.exception.AiGatewayException;
 import com.commerce.platform.common.entity.Result;
+import com.commerce.platform.common.web.RequestIdFilter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
@@ -46,7 +50,12 @@ public class AdminAiStatsController {
     }
 
     @GetMapping(value = "/stats", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Result<JsonNode> getAiStats() {
+    public Result<JsonNode> getAiStats(
+            @RequestAttribute(value = RequestIdFilter.ATTRIBUTE_NAME, required = false) String requestId,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        String resolvedRequestId = requestId == null ? RequestIdFilter.getRequestId(httpRequest) : requestId;
+        httpResponse.setHeader(RequestIdFilter.HEADER_NAME, resolvedRequestId);
         if (properties.baseUrl() == null || properties.internalToken() == null
                 || properties.internalToken().isBlank()) {
             throw new AiGatewayException("AI Gateway authentication is not configured");
@@ -58,6 +67,7 @@ public class AdminAiStatsController {
                 .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .header("Accept", MediaType.APPLICATION_JSON_VALUE)
                 .header("X-Internal-Token", properties.internalToken())
+                .header("X-Request-Id", resolvedRequestId)
                 .GET()
                 .build();
 

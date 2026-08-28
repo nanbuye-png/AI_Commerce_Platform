@@ -35,6 +35,11 @@ export interface OrderVO {
   updatedTime: string;
   displayStatus?: string;
   items?: OrderItemVO[];
+  logisticsCompany?: string;
+  trackingNo?: string;
+  shippingTime?: string;
+  receivedTime?: string;
+  canShip?: boolean;
 }
 
 export interface OrderItemVO {
@@ -77,4 +82,7 @@ export const orderApi = {
   /** 查询订单支付流水（收款凭证 Token） */
   getPaymentByOrder: (orderNo: string) =>
     request.get<ApiResult<CreatePaymentResult>, ApiResult<CreatePaymentResult>>(`/api/payments/orders/${orderNo}`),
+
+  ship: (orderNo: string, payload: { logisticsCompany: string; trackingNo: string }) =>
+    request.post<ApiResult<void>, ApiResult<void>>(`/api/merchant/orders/${orderNo}/ship`, payload),
 };

@@ -204,16 +204,27 @@ public class CustomerProductServiceImpl implements CustomerProductService {
 
         // 计算价格区间
         if (product.getSkus() != null && !product.getSkus().isEmpty()) {
-            BigDecimal min = product.getSkus().stream()
+            var activeSkus = product.getSkus().stream()
+                    .filter(sku -> "ACTIVE".equalsIgnoreCase(sku.getStatus()))
+                    .toList();
+            BigDecimal min = activeSkus.stream()
                     .map(sku -> sku.getPrice())
                     .min(BigDecimal::compareTo)
                     .orElse(BigDecimal.ZERO);
-            BigDecimal max = product.getSkus().stream()
+            BigDecimal max = activeSkus.stream()
                     .map(sku -> sku.getPrice())
                     .max(BigDecimal::compareTo)
                     .orElse(BigDecimal.ZERO);
             response.setMinPrice(min);
             response.setMaxPrice(max);
+            activeSkus.stream()
+                    .min((left, right) -> left.getPrice().compareTo(right.getPrice()))
+                    .ifPresent(sku -> {
+                        response.setDefaultSkuId(sku.getId());
+                        response.setDefaultSkuPrice(sku.getPrice());
+                        var stock = inventoryStockRepository.findBySkuId(sku.getId()).orElse(null);
+                        response.setDefaultSkuStock(stock == null ? null : stock.getAvailableQuantity());
+                    });
         }
 
         // 取首图

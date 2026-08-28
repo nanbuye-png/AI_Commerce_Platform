@@ -17,8 +17,17 @@ __pycache__/
 *.so
 .env
 !.env.example
+*.env
+!.env.example
+.env.compose
+.env.compose.local
 venv/
 .venv/
+
+# Local dependency caches
+.m2/
+.pytest_cache/
+**/.pytest_cache/
 
 # IDE
 .idea/
@@ -45,6 +54,10 @@ backend/commerce-platform/dependency-reduced-pom.xml
 # Docs - design documents only tracked locally
 docs/
 reports/
+!docs/
+!docs/security-design.md
+!docs/demo-script.md
+!docs/ai-evaluation.md
 
 # Local autonomous work checkpoints
 .harness-active

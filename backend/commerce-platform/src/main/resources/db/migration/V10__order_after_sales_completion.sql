@@ -1,0 +1,9 @@
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS logistics_company VARCHAR(100);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_no VARCHAR(100);
+
+ALTER TABLE return_request ADD COLUMN IF NOT EXISTS logistics_company VARCHAR(100);
+ALTER TABLE return_request ADD COLUMN IF NOT EXISTS tracking_no VARCHAR(100);
+ALTER TABLE return_request ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP WITHOUT TIME ZONE;
+ALTER TABLE return_request ADD COLUMN IF NOT EXISTS received_at TIMESTAMP WITHOUT TIME ZONE;
+
+CREATE INDEX IF NOT EXISTS idx_return_request_status ON return_request(status);

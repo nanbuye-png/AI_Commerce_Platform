@@ -3,6 +3,7 @@ package com.commerce.platform.refund.domain.repository;
 import com.commerce.platform.refund.domain.aggregate.Refund;
 
 import java.util.Optional;
+import java.util.List;
 
 /**
  * 退款仓储接口
@@ -28,4 +29,6 @@ public interface RefundRepository {
      * @return 退款 Optional
      */
     Optional<Refund> findById(Long id);
+    List<Refund> findByUserId(Long userId);
+    List<Refund> findByOrderId(Long orderId);
 }

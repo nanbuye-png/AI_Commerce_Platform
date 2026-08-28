@@ -103,6 +103,19 @@ const ReturnDetailPage: React.FC = () => {
     }
   };
 
+  const handleReceive = async () => {
+    if (!returnRequest || !window.confirm('确认已收到用户寄回的商品吗？')) return;
+    setActionLoading(true);
+    try {
+      await returnApi.receive(returnRequest.id);
+      alert('已确认收货，退款已完成');
+      await loadReturn();
+    } catch (error) {
+      console.error('确认收货失败:', error);
+      alert('操作失败，请检查退货状态');
+    } finally { setActionLoading(false); }
+  };
+
   if (loading) {
     return <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>加载中...</div>;
   }
@@ -158,6 +171,9 @@ const ReturnDetailPage: React.FC = () => {
 
           <div style={{ color: 'var(--color-text-secondary)' }}>完成时间</div>
           <div style={{ color: 'var(--color-text-primary)' }}>{returnRequest.completedAt ? new Date(returnRequest.completedAt).toLocaleString('zh-CN') : '-'}</div>
+
+          <div style={{ color: 'var(--color-text-secondary)' }}>寄回物流</div>
+          <div style={{ color: 'var(--color-text-primary)' }}>{returnRequest.logisticsCompany || '-'} / {returnRequest.trackingNo || '-'}</div>
         </div>
 
         {returnRequest.status === 'REQUESTED' && (
@@ -176,6 +192,11 @@ const ReturnDetailPage: React.FC = () => {
             >
               拒绝退货
             </button>
+          </div>
+        )}
+        {returnRequest.status === 'RETURNING' && (
+          <div style={{ marginTop: 'var(--spacing-xl)', paddingTop: 'var(--spacing-lg)', borderTop: '1px solid var(--color-border-light)' }}>
+            <button onClick={() => void handleReceive()} disabled={actionLoading} style={{ padding: '8px 24px', borderRadius: 'var(--radius-sm)', border: 'none', background: '#34C759', color: '#fff', fontSize: '14px', cursor: 'pointer', fontWeight: 500 }}>确认收货并完成退款</button>
           </div>
         )}
       </div>

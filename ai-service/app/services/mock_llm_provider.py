@@ -21,6 +21,11 @@ class MockLlmProvider:
     @staticmethod
     def _response(message: str, context: LlmContext | None) -> str:
         product_search = context.get("product_search") if context else None
+        add_to_cart = context.get("add_to_cart") if context else None
+        if isinstance(add_to_cart, Mapping) and add_to_cart.get("success"):
+            return "已将商品加入购物车，您可以打开购物车继续查看。"
+        if isinstance(add_to_cart, Mapping) and add_to_cart.get("confirmation_required"):
+            return "如果要加入购物车，请确认这件商品和数量后再点击确认。"
         if not isinstance(product_search, Mapping):
             return f"收到您的需求：{message}。我会根据预算和使用场景为您整理商品建议。"
 

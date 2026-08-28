@@ -2,6 +2,7 @@ package com.commerce.platform.order.controller;
 
 import com.commerce.platform.common.entity.Result;
 import com.commerce.platform.order.dto.request.MerchantOrderQueryRequest;
+import com.commerce.platform.order.dto.request.ShipOrderRequest;
 import com.commerce.platform.order.dto.response.OrderVO;
 import com.commerce.platform.order.service.MerchantOrderApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 /**
  * Merchant 订单管理 Controller
@@ -49,6 +51,14 @@ public class MerchantOrderController {
         log.info("Merchant 订单详情 - merchantId={}, orderNo={}", merchantId, orderNo);
         OrderVO vo = merchantOrderApplicationService.getMerchantOrderDetail(merchantId, orderNo);
         return Result.success(vo);
+    }
+
+    @PostMapping("/{orderNo}/ship")
+    public Result<Void> shipOrder(@PathVariable String orderNo,
+                                  @Valid @RequestBody ShipOrderRequest request,
+                                  Authentication authentication) {
+        merchantOrderApplicationService.shipOrder(getMerchantId(authentication), orderNo, request);
+        return Result.success();
     }
 
     /**

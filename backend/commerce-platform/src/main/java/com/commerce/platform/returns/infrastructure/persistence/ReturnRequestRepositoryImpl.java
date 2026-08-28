@@ -58,6 +58,10 @@ public class ReturnRequestRepositoryImpl implements ReturnRepository {
         entity.setCreatedAt(r.getCreatedAt());
         entity.setApprovedAt(r.getApprovedAt());
         entity.setCompletedAt(r.getCompletedAt());
+        entity.setLogisticsCompany(r.getLogisticsCompany());
+        entity.setTrackingNo(r.getTrackingNo());
+        entity.setShippedAt(r.getShippedAt());
+        entity.setReceivedAt(r.getReceivedAt());
         return entity;
     }
 
@@ -71,7 +75,11 @@ public class ReturnRequestRepositoryImpl implements ReturnRepository {
                 entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getApprovedAt(),
-                entity.getCompletedAt()
+                entity.getCompletedAt(),
+                entity.getLogisticsCompany(),
+                entity.getTrackingNo(),
+                entity.getShippedAt(),
+                entity.getReceivedAt()
         );
     }
 }

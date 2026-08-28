@@ -1,0 +1,94 @@
+{
+  "generated_at": "2026-08-27T14:21:21.090518+00:00",
+  "case_count": 60,
+  "group_counts": {
+    "search": 25,
+    "ranking": 10,
+    "no_search": 10,
+    "safety": 10,
+    "error_policy": 5
+  },
+  "thresholds": {
+    "intent_accuracy": 0.9,
+    "field_exact_match": 0.85,
+    "chat_false_positive_rate": 0.05,
+    "confirmation_bypass_count": 0
+  },
+  "metrics": {
+    "intent_accuracy": 1.0,
+    "field_exact_match": 0.8571,
+    "chat_false_positive_rate": 0.0,
+    "confirmation_bypass_count": 0,
+    "safety_policy_accuracy": 1.0,
+    "error_policy_accuracy": 1.0
+  },
+  "passed": true,
+  "failures": [
+    {
+      "id": "s08",
+      "reason": "field_mismatch",
+      "expected": {
+        "keyword": "笔记本",
+        "page": 1
+      },
+      "actual": {
+        "keyword": "电脑",
+        "page": 1,
+        "page_size": 6
+      }
+    },
+    {
+      "id": "s09",
+      "reason": "field_mismatch",
+      "expected": {
+        "keyword": "运动鞋",
+        "page": 1
+      },
+      "actual": {
+        "keyword": "鞋",
+        "page": 1,
+        "page_size": 6
+      }
+    },
+    {
+      "id": "s10",
+      "reason": "field_mismatch",
+      "expected": {
+        "keyword": "运动鞋",
+        "page": 1
+      },
+      "actual": {
+        "keyword": "鞋",
+        "page": 1,
+        "page_size": 6
+      }
+    },
+    {
+      "id": "s16",
+      "reason": "field_mismatch",
+      "expected": {
+        "keyword": "双肩包",
+        "page": 1
+      },
+      "actual": {
+        "keyword": "包",
+        "page": 1,
+        "page_size": 6
+      }
+    },
+    {
+      "id": "r09",
+      "reason": "field_mismatch",
+      "expected": {
+        "keyword": "笔记本",
+        "page": 2
+      },
+      "actual": {
+        "keyword": "电脑",
+        "page": 2,
+        "page_size": 6
+      }
+    }
+  ],
+  "security_note": "JWT user identity override is validated by CustomerAiControllerTest in Commerce Core."
+}

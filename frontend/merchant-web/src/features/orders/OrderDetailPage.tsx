@@ -15,6 +15,7 @@ const OrderDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [payment, setPayment] = useState<CreatePaymentResult | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [shipForm, setShipForm] = useState({ logisticsCompany: '', trackingNo: '' });
 
   const load = useCallback(() => {
     if (!orderNo) return;
@@ -60,6 +61,22 @@ const OrderDetailPage: React.FC = () => {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleShip = async () => {
+    if (!order || !shipForm.logisticsCompany.trim() || !shipForm.trackingNo.trim()) {
+      alert('请填写物流公司和运单号');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await orderApi.ship(order.orderNo, { logisticsCompany: shipForm.logisticsCompany.trim(), trackingNo: shipForm.trackingNo.trim() });
+      alert('发货成功');
+      load();
+    } catch (error) {
+      console.error('发货失败:', error);
+      alert('发货失败，请确认订单状态');
+    } finally { setActionLoading(false); }
   };
 
   if (loading) return <p style={{ textAlign: 'center', padding: 'var(--spacing-3xl)', color: 'var(--color-text-tertiary)' }}>加载中...</p>;
@@ -108,6 +125,17 @@ const OrderDetailPage: React.FC = () => {
               <span style={{ fontWeight: 600 }}>¥{Number(it.price * it.quantity).toFixed(2)}</span>
             </div>
           ))
+        )}
+
+        {(order.orderStatus === 'PAID' || order.orderStatus === 'PROCESSING') && (
+          <div style={{ marginTop: 'var(--spacing-lg)', paddingTop: 'var(--spacing-lg)', borderTop: '1px solid var(--color-border-light)' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, marginBottom: 'var(--spacing-sm)' }}>发货信息</h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={shipForm.logisticsCompany} onChange={(e) => setShipForm({ ...shipForm, logisticsCompany: e.target.value })} placeholder="物流公司" style={inputStyle} />
+              <input value={shipForm.trackingNo} onChange={(e) => setShipForm({ ...shipForm, trackingNo: e.target.value })} placeholder="运单号" style={inputStyle} />
+              <button onClick={() => void handleShip()} disabled={actionLoading} style={primaryButtonStyle}>确认发货</button>
+            </div>
+          </div>
         )}
 
         {/* 商家操作区 */}
@@ -160,5 +188,8 @@ const OrderDetailPage: React.FC = () => {
     </div>
   );
 };
+
+const inputStyle: React.CSSProperties = { padding: '8px 10px', border: '1px solid var(--color-border)', borderRadius: 6, minWidth: 0, flex: 1 };
+const primaryButtonStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 6, border: 'none', background: 'var(--color-accent)', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' };
 
 export default OrderDetailPage;

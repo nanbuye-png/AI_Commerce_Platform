@@ -154,7 +154,14 @@ const MerchantLayout: React.FC = () => {
             商家管理后台
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-            <button style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>🔔</button>
+            <button
+              aria-label="查看退款与退货通知"
+              title="查看退款与退货通知"
+              onClick={() => navigate('/refunds')}
+              style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}
+            >
+              🔔
+            </button>
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', fontSize: '14px', fontWeight: 600 }}>
               {(userInfo?.nickname || userInfo?.username || 'M').charAt(0).toUpperCase()}
             </div>

@@ -53,6 +53,18 @@ public class ReturnRequestEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "logistics_company", length = 100)
+    private String logisticsCompany;
+
+    @Column(name = "tracking_no", length = 100)
+    private String trackingNo;
+
+    @Column(name = "shipped_at")
+    private LocalDateTime shippedAt;
+
+    @Column(name = "received_at")
+    private LocalDateTime receivedAt;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {

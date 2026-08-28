@@ -1,11 +1,11 @@
 import type {
-  AIRecommendation,
   AISearchIntent,
   AIService,
   AISession,
   AIStreamHandlers,
   AIStreamMeta,
   AIStreamResult,
+  AISendMessageOptions,
 } from './aiTypes';
 import { getToken, removeToken } from '../../utils/token';
 
@@ -48,6 +48,14 @@ function isStreamMeta(value: unknown): value is AIStreamMeta {
   if (!value || typeof value !== 'object') return false;
   const data = value as Record<string, unknown>;
   if (data.type === 'product_search_error') return typeof data.message === 'string';
+  if (data.type === 'add_to_cart_confirmation') {
+    return typeof data.sku_id === 'number' && typeof data.quantity === 'number';
+  }
+  if (data.type === 'add_to_cart_result') {
+    return typeof data.sku_id === 'number'
+      && typeof data.quantity === 'number'
+      && typeof data.success === 'boolean';
+  }
   return (
     data.type === 'product_search'
     && typeof data.total === 'number'
@@ -57,7 +65,7 @@ function isStreamMeta(value: unknown): value is AIStreamMeta {
   );
 }
 
-function dispatchEventFrame(frame: string, handlers: AIStreamHandlers): void {
+export function dispatchEventFrame(frame: string, handlers: AIStreamHandlers): void {
   let eventName = 'message';
   const dataLines: string[] = [];
 
@@ -95,7 +103,7 @@ function dispatchEventFrame(frame: string, handlers: AIStreamHandlers): void {
   }
 }
 
-async function readEventStream(response: Response, handlers: AIStreamHandlers): Promise<void> {
+export async function readEventStream(response: Response, handlers: AIStreamHandlers): Promise<void> {
   if (!response.body) throw new Error('当前浏览器不支持流式响应');
 
   const reader = response.body.getReader();
@@ -120,7 +128,7 @@ async function readEventStream(response: Response, handlers: AIStreamHandlers): 
 }
 
 export const aiClient: AIService = {
-  async sendMessage(sessionId, message, handlers, signal): Promise<void> {
+  async sendMessage(sessionId, message, handlers, options?: AISendMessageOptions, signal?: AbortSignal): Promise<void> {
     const token = getToken();
     if (!token) throw new Error('请先登录后使用 AI 购物助手');
 
@@ -130,8 +138,18 @@ export const aiClient: AIService = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
+        'X-Request-Id': crypto.randomUUID(),
       },
-      body: JSON.stringify({ message, conversation_id: sessionId }),
+      body: JSON.stringify({
+        message,
+        conversation_id: sessionId,
+        ...(options?.action ? {
+          action: options.action,
+          sku_id: options.skuId,
+          quantity: options.quantity,
+          confirmed: options.confirmed ?? false,
+        } : {}),
+      }),
       signal,
     });
 
@@ -177,9 +195,5 @@ export const aiClient: AIService = {
       keywords: query.trim().split(/\s+/),
       confidence: 0.5,
     };
-  },
-
-  async getRecommendations(_productId?: string, _limit?: number): Promise<AIRecommendation[]> {
-    return [];
   },
 };

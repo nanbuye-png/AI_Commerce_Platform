@@ -58,6 +58,9 @@ public class AdminOrderVO {
     private LocalDateTime createdTime;
     private LocalDateTime updatedTime;
 
+    private String logisticsCompany;
+    private String trackingNo;
+
     // ---- 关联信息 ----
     private List<OrderItemVO> items;
     private OrderAddressVO address;

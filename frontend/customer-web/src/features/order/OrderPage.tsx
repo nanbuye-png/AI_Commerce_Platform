@@ -1,26 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '../../components/common';
 import OrderCard from './components/OrderCard';
 import { orderService, type OrderVO, type PaymentDetail } from '../../services/order';
 import { getToken } from '../../utils/token';
-import type { Order, OrderItem, OrderStatus } from './types/order';
-
-/** 后端订单状态 → 前端订单状态 */
-function toFrontendStatus(status: string): OrderStatus {
-  const map: Record<string, OrderStatus> = {
-    PENDING_PAYMENT: 'pending_payment',
-    PROCESSING: 'pending_ship',
-    PAID: 'pending_ship',
-    SHIPPED: 'shipped',
-    COMPLETED: 'completed',
-    CANCELLED: 'cancelled',
-    REFUNDING: 'refunding',
-    REFUNDED: 'refunding',
-    CLOSED: 'cancelled',
-  };
-  return map[status] ?? 'pending_payment';
-}
+import type { Order, OrderItem } from './types/order';
+import { toFrontendStatus } from './orderStatus';
 
 /** 后端订单 VO → 前端 Order */
 function toOrder(vo: OrderVO): Order {
@@ -42,6 +27,11 @@ function toOrder(vo: OrderVO): Order {
     actualAmount: Number(vo.payAmount ?? vo.totalAmount ?? 0) || 0,
     address: '',
     createdAt: vo.createdTime ?? '',
+    canCancel: vo.canCancel,
+    canConfirm: vo.canConfirm,
+    canRefund: vo.canRefund,
+    logisticsCompany: vo.logisticsCompany,
+    trackingNo: vo.trackingNo,
   };
 }
 
@@ -55,9 +45,9 @@ const OrderPage: React.FC = () => {
   const [payError, setPayError] = useState<string | null>(null);
   const [paid, setPaid] = useState(false);
 
-  const loadOrders = () => {
+  const loadOrders = useCallback(() => {
     setLoading(true);
-    orderService
+    return orderService
       .myOrders({ page: 1, pageSize: 20 })
       .then((res) => {
         setOrders((res.list ?? []).map(toOrder));
@@ -66,32 +56,27 @@ const OrderPage: React.FC = () => {
         console.error('加载订单失败:', err);
       })
       .finally(() => setLoading(false));
-  };
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
     if (!getToken()) {
       void navigate('/login');
       return;
     }
 
-    orderService
-      .myOrders({ page: 1, pageSize: 20 })
-      .then((res) => {
-        if (!cancelled) setOrders((res.list ?? []).map(toOrder));
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) console.error('加载订单失败:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    void loadOrders();
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadOrders();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
 
     return () => {
-      cancelled = true;
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [navigate]);
+  }, [loadOrders, navigate]);
 
   /**
    * "去付款"：先查询该订单的支付流水（商家已接单并发起收款后才有）
@@ -118,7 +103,7 @@ const OrderPage: React.FC = () => {
     try {
       await orderService.payByToken(payment.qrToken);
       setPaid(true);
-      loadOrders();
+      void loadOrders();
       setTimeout(() => setPayment(null), 1500);
     } catch (err) {
       console.error('支付失败:', err);
@@ -141,6 +126,42 @@ const OrderPage: React.FC = () => {
       setPayError('取消失败，请稍后重试');
     } finally {
       setPayLoading(false);
+    }
+  };
+
+  const handleCancelOrder = async (orderNo: string) => {
+    if (!window.confirm('确定取消这个订单吗？')) return;
+    try {
+      await orderService.cancelOrder(orderNo);
+      void loadOrders();
+    } catch (err) {
+      console.error('取消订单失败:', err);
+      alert('取消订单失败，请稍后重试');
+    }
+  };
+
+  const handleConfirmReceipt = async (orderNo: string) => {
+    if (!window.confirm('确认已经收到商品吗？')) return;
+    try {
+      await orderService.confirmReceipt(orderNo);
+      void loadOrders();
+    } catch (err) {
+      console.error('确认收货失败:', err);
+      alert('确认收货失败，请稍后重试');
+    }
+  };
+
+  const handleAfterSales = async (orderNo: string, type: 'refund' | 'return') => {
+    const reason = window.prompt(type === 'refund' ? '请输入退款原因：' : '请输入退货原因：', type === 'refund' ? 'OTHER' : 'OTHER');
+    if (!reason) return;
+    try {
+      if (type === 'refund') await orderService.requestRefund(orderNo, reason);
+      else await orderService.requestReturn(orderNo, reason);
+      alert(type === 'refund' ? '退款申请已提交，等待商家审核' : '退货申请已提交，等待商家审核');
+      void loadOrders();
+    } catch (err) {
+      console.error('提交售后申请失败:', err);
+      alert('提交失败，请确认订单状态或稍后重试');
     }
   };
 
@@ -180,6 +201,10 @@ const OrderPage: React.FC = () => {
           key={order.id}
           order={order}
           onPay={handlePay}
+          onCancel={handleCancelOrder}
+          onConfirm={handleConfirmReceipt}
+          onAfterSales={handleAfterSales}
+          onTrack={(orderNo) => navigate(`/orders/${orderNo}`)}
         />
       ))}
 

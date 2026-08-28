@@ -16,6 +16,7 @@ export interface AIMessage {
     readonly actionType?: AIActionType;
     readonly confidence?: number;
     readonly productSearch?: AIProductSearchMetadata;
+    readonly addToCart?: AIAddToCartMetadata;
   };
 }
 
@@ -28,6 +29,9 @@ export interface AIProductSearchProduct {
   readonly categoryName?: string | null;
   readonly minPrice?: number | null;
   readonly maxPrice?: number | null;
+  readonly defaultSkuId?: number | null;
+  readonly defaultSkuPrice?: number | null;
+  readonly defaultSkuStock?: number | null;
   readonly coverImage?: string | null;
   readonly salesCount?: number | null;
   readonly createdTime?: string | null;
@@ -48,6 +52,21 @@ export interface AIProductSearchMetadata {
   readonly error?: string;
 }
 
+export interface AIAddToCartMetadata {
+  readonly type: 'add_to_cart_confirmation' | 'add_to_cart_result';
+  readonly skuId?: number;
+  readonly quantity?: number;
+  readonly success?: boolean;
+  readonly message?: string;
+}
+
+export interface AISendMessageOptions {
+  readonly action?: 'add_to_cart';
+  readonly skuId?: number;
+  readonly quantity?: number;
+  readonly confirmed?: boolean;
+}
+
 export type AIStreamMeta =
   | {
       readonly type: 'product_search';
@@ -58,6 +77,21 @@ export type AIStreamMeta =
   | {
       readonly type: 'product_search_error';
       readonly message: string;
+    }
+  | {
+      readonly type: 'add_to_cart_confirmation';
+      readonly sku_id: number;
+      readonly quantity: number;
+    }
+  | {
+      readonly type: 'add_to_cart_result';
+      readonly sku_id: number;
+      readonly quantity: number;
+      readonly success: boolean;
+      readonly message?: string;
+      readonly cart?: {
+        readonly items?: unknown[];
+      };
     };
 
 /** AI 动作类型 */
@@ -84,15 +118,6 @@ export interface AISession {
   readonly updatedAt: string;
 }
 
-/** AI 推荐结果 */
-export interface AIRecommendation {
-  readonly id: string;
-  readonly productId: string;
-  readonly score: number;
-  readonly reason: string;
-  readonly type: 'similar' | 'complementary' | 'trending' | 'personalized' | 'outfit';
-}
-
 /** AI 搜索意图 */
 export interface AISearchIntent {
   readonly originalQuery: string;
@@ -109,7 +134,6 @@ export interface AISearchIntent {
 /** AI 回答 */
 export interface AIResponse {
   readonly message: AIMessage;
-  readonly recommendations?: AIRecommendation[];
   readonly actions?: AIActionType[];
   readonly suggestions?: string[];
 }
@@ -134,6 +158,7 @@ export interface AIService {
     sessionId: string,
     message: string,
     handlers: AIStreamHandlers,
+    options?: AISendMessageOptions,
     signal?: AbortSignal,
   ): Promise<void>;
   /** 创建新会话 */
@@ -144,8 +169,6 @@ export interface AIService {
   clearSession(sessionId: string): Promise<void>;
   /** 分析搜索意图 */
   analyzeSearchIntent(query: string): Promise<AISearchIntent>;
-  /** 获取商品推荐 */
-  getRecommendations(productId?: string, limit?: number): Promise<AIRecommendation[]>;
 }
 
 /** AI Service Key */

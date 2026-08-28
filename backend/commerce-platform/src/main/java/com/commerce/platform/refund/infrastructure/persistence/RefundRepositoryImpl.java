@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 退款仓储实现
@@ -29,6 +31,16 @@ public class RefundRepositoryImpl implements RefundRepository {
     @Override
     public Optional<Refund> findById(Long id) {
         return jpaRepository.findById(id).map(this::toDomain);
+    }
+
+    @Override
+    public List<Refund> findByUserId(Long userId) {
+        return jpaRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Refund> findByOrderId(Long orderId) {
+        return jpaRepository.findByOrderId(orderId).stream().map(this::toDomain).collect(Collectors.toList());
     }
 
     private RefundEntity toEntity(Refund refund) {

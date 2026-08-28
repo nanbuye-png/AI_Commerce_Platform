@@ -4,9 +4,10 @@ import com.commerce.platform.common.entity.Result;
 import com.commerce.platform.refund.domain.aggregate.Refund;
 import com.commerce.platform.refund.domain.repository.RefundRepository;
 import com.commerce.platform.refund.domain.valueobject.RefundStatus;
+import com.commerce.platform.order.domain.entity.Order;
+import com.commerce.platform.order.domain.repository.OrderRepository;
 import com.commerce.platform.refund.infrastructure.persistence.RefundEntity;
 import com.commerce.platform.refund.infrastructure.persistence.RefundJpaRepository;
-import com.commerce.platform.order.domain.entity.Order;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.transaction.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +39,7 @@ public class MerchantRefundController {
 
     private final RefundJpaRepository refundJpaRepository;
     private final RefundRepository refundRepository;
+    private final OrderRepository orderRepository;
 
     /**
      * 退款列表查询（分页）
@@ -92,6 +95,7 @@ public class MerchantRefundController {
      * REQUESTED → APPROVED
      */
     @PostMapping("/{id}/approve")
+    @Transactional
     public Result<Refund> approveRefund(@PathVariable Long id, Authentication authentication) {
         Long merchantId = getMerchantId(authentication);
         log.info("Merchant 批准退款 - id={}, merchantId={}", id, merchantId);
@@ -103,7 +107,13 @@ public class MerchantRefundController {
         }
 
         refund.approve();
+        refund.process();
+        refund.complete();
         Refund saved = refundRepository.save(refund);
+        orderRepository.findById(saved.getOrderId()).ifPresent(order -> {
+            order.completeRefund();
+            orderRepository.save(order);
+        });
         log.info("Merchant 批准退款成功 - id={}, status={}", id, saved.getStatus());
         return Result.success(saved);
     }

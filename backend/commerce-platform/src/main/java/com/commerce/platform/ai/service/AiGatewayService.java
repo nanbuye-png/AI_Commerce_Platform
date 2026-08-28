@@ -38,6 +38,10 @@ public class AiGatewayService {
     }
 
     public void stream(ChatStreamRequest request, Consumer<String> eventConsumer) {
+        stream(request, java.util.UUID.randomUUID().toString(), eventConsumer);
+    }
+
+    public void stream(ChatStreamRequest request, String requestId, Consumer<String> eventConsumer) {
         ensureConfigured();
 
         HttpRequest upstreamRequest = HttpRequest.newBuilder(resolveChatUri())
@@ -45,6 +49,7 @@ public class AiGatewayService {
                 .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .header("Accept", MediaType.TEXT_EVENT_STREAM_VALUE)
                 .header("X-Internal-Token", properties.internalToken())
+                .header("X-Request-Id", requestId)
                 .POST(HttpRequest.BodyPublishers.ofString(serialize(request)))
                 .build();
 

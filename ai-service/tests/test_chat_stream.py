@@ -100,16 +100,26 @@ class ProductSearchIntentParserStub:
 
 
 class StubCommerceTool:
+    def __init__(self):
+        self.add_to_cart_calls = []
+
     async def search_products(self, intent):
         return {
             "items": [{"id": 42, "productName": "降噪耳机", "minPrice": 899}],
             "total": 1,
         }
 
+    async def add_to_cart(self, *, user_id, sku_id, quantity):
+        self.add_to_cart_calls.append((user_id, sku_id, quantity))
+        return {"id": 7, "userId": user_id, "items": [{"skuId": sku_id, "quantity": quantity}]}
+
 
 class FailingCommerceTool:
     async def search_products(self, intent):
         raise CommerceToolError("unavailable")
+
+    async def add_to_cart(self, *, user_id, sku_id, quantity):
+        raise CommerceToolError("库存不足")
 
 
 class CapturingProvider:
@@ -176,6 +186,119 @@ def test_chat_stream_keeps_tokens_when_product_search_fails(monkeypatch) -> None
             {"type": "product_search_error", "message": "商品搜索暂时不可用，请稍后再试。"},
         )
         assert any(event == "message" for event, _ in events)
+        assert events[-1][0] == "done"
+    finally:
+        chat_api.commerce_tool = original_tool
+
+
+def test_chat_stream_requires_confirmation_before_add_to_cart(monkeypatch) -> None:
+    client = _client(monkeypatch)
+    from app.api import chat as chat_api
+
+    original_tool = chat_api.commerce_tool
+    original_provider = chat_api.provider
+    tool = StubCommerceTool()
+    provider = CapturingProvider()
+    chat_api.commerce_tool = tool
+    chat_api.provider = provider
+    try:
+        response = client.post(
+            "/api/v1/internal/ai/chat/stream",
+            headers={"X-Internal-Token": "test-internal-token"},
+            json={
+                "message": "把耳机加入购物车",
+                "user_id": 12,
+                "action": "add_to_cart",
+                "sku_id": 42,
+                "quantity": 2,
+            },
+        )
+        events = _events(response.text)
+        assert response.status_code == 200
+        assert events[0] == (
+            "meta",
+            {"type": "add_to_cart_confirmation", "sku_id": 42, "quantity": 2},
+        )
+        assert tool.add_to_cart_calls == []
+        assert provider.context["add_to_cart"]["confirmation_required"] is True
+        assert events[-1][0] == "done"
+    finally:
+        chat_api.commerce_tool = original_tool
+        chat_api.provider = original_provider
+
+
+def test_chat_stream_executes_confirmed_add_to_cart(monkeypatch) -> None:
+    client = _client(monkeypatch)
+    from app.api import chat as chat_api
+
+    original_tool = chat_api.commerce_tool
+    original_provider = chat_api.provider
+    tool = StubCommerceTool()
+    chat_api.commerce_tool = tool
+    chat_api.provider = CapturingProvider()
+    try:
+        response = client.post(
+            "/api/v1/internal/ai/chat/stream",
+            headers={"X-Internal-Token": "test-internal-token"},
+            json={
+                "message": "确认加入购物车",
+                "user_id": 12,
+                "action": "add_to_cart",
+                "sku_id": 42,
+                "quantity": 2,
+                "confirmed": True,
+            },
+        )
+        events = _events(response.text)
+        assert response.status_code == 200
+        assert events[0] == (
+            "meta",
+            {
+                "type": "add_to_cart_result",
+                "success": True,
+                "sku_id": 42,
+                "quantity": 2,
+                "cart": {"id": 7, "userId": 12, "items": [{"skuId": 42, "quantity": 2}]},
+            },
+        )
+        assert tool.add_to_cart_calls == [(12, 42, 2)]
+        assert events[-1][0] == "done"
+    finally:
+        chat_api.commerce_tool = original_tool
+        chat_api.provider = original_provider
+
+
+def test_chat_stream_reports_add_to_cart_failure(monkeypatch) -> None:
+    client = _client(monkeypatch)
+    from app.api import chat as chat_api
+
+    original_tool = chat_api.commerce_tool
+    chat_api.commerce_tool = FailingCommerceTool()
+    try:
+        response = client.post(
+            "/api/v1/internal/ai/chat/stream",
+            headers={"X-Internal-Token": "test-internal-token"},
+            json={
+                "message": "确认加入购物车",
+                "user_id": 12,
+                "action": "add_to_cart",
+                "sku_id": 42,
+                "quantity": 1,
+                "confirmed": True,
+            },
+        )
+        events = _events(response.text)
+        assert response.status_code == 200
+        assert events[0] == (
+            "meta",
+            {
+                "type": "add_to_cart_result",
+                "success": False,
+                "sku_id": 42,
+                "quantity": 1,
+                "message": "商品暂时无法加入购物车，请稍后再试。",
+            },
+        )
         assert events[-1][0] == "done"
     finally:
         chat_api.commerce_tool = original_tool

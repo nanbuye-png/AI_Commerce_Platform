@@ -25,7 +25,7 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("${app.security.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:5175}")
+    @Value("${app.security.allowed-origins:http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175,http://[::1]:5173,http://[::1]:5174,http://[::1]:5175}")
     private List<String> allowedOrigins;
 
     @Bean
@@ -37,7 +37,7 @@ public class SecurityConfig {
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Request-Id"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -54,7 +54,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/health", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers("/api/auth/register").permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/products/**", "/api/categories/**").permitAll()

@@ -4,9 +4,15 @@ import com.commerce.platform.common.entity.Result;
 import com.commerce.platform.returns.domain.aggregate.ReturnRequest;
 import com.commerce.platform.returns.domain.repository.ReturnRepository;
 import com.commerce.platform.returns.domain.valueobject.ReturnStatus;
+import com.commerce.platform.returns.dto.ReturnShipmentRequest;
 import com.commerce.platform.returns.infrastructure.persistence.ReturnRequestEntity;
 import com.commerce.platform.returns.infrastructure.persistence.ReturnRequestJpaRepository;
 import com.commerce.platform.order.domain.entity.Order;
+import com.commerce.platform.order.domain.repository.OrderRepository;
+import com.commerce.platform.refund.domain.aggregate.Refund;
+import com.commerce.platform.refund.domain.repository.RefundRepository;
+import com.commerce.platform.refund.domain.valueobject.RefundReason;
+import com.commerce.platform.refund.domain.valueobject.RefundStatus;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +23,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import jakarta.transaction.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +45,8 @@ public class MerchantReturnController {
 
     private final ReturnRequestJpaRepository returnJpaRepository;
     private final ReturnRepository returnRepository;
+    private final OrderRepository orderRepository;
+    private final RefundRepository refundRepository;
 
     /**
      * 退货列表查询（分页）
@@ -128,6 +138,45 @@ public class MerchantReturnController {
         return Result.success(saved);
     }
 
+    @PostMapping("/{id}/receive")
+    @Transactional
+    public Result<ReturnRequest> receiveReturn(@PathVariable Long id, Authentication authentication) {
+        Long merchantId = getMerchantId(authentication);
+        ReturnRequest returnRequest = findOwnedReturn(id, merchantId);
+        if (returnRequest.getStatus() != ReturnStatus.RETURNING) {
+            return Result.error("当前退货状态不允许确认收货: " + returnRequest.getStatus());
+        }
+        Order order = orderRepository.findById(returnRequest.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException("关联订单不存在"));
+        Refund refund = refundRepository.findByOrderId(order.getId()).stream()
+                .filter(item -> item.getStatus() == RefundStatus.COMPLETED)
+                .findFirst()
+                .orElseGet(() -> createCompletedRefund(order, returnRequest));
+        returnRequest.receive();
+        returnRequest.complete();
+        returnRequest.setRefundId(refund.getId());
+        order.completeRefund();
+        orderRepository.save(order);
+        return Result.success(returnRepository.save(returnRequest));
+    }
+
+    private Refund createCompletedRefund(Order order, ReturnRequest returnRequest) {
+        Refund refund = Refund.create(order.getId(), returnRequest.getUserId(), order.getPayAmount(), mapRefundReason(returnRequest));
+        refund.approve();
+        refund.process();
+        refund.complete();
+        return refundRepository.save(refund);
+    }
+
+    private RefundReason mapRefundReason(ReturnRequest returnRequest) {
+        return switch (returnRequest.getReason()) {
+            case QUALITY_ISSUE -> RefundReason.QUALITY_ISSUE;
+            case DAMAGED -> RefundReason.DAMAGED;
+            case WRONG_ITEM -> RefundReason.WRONG_PRODUCT;
+            default -> RefundReason.OTHER;
+        };
+    }
+
     private ReturnRequest toDomain(ReturnRequestEntity entity) {
         return ReturnRequest.restore(
                 entity.getId(),
@@ -138,7 +187,11 @@ public class MerchantReturnController {
                 entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getApprovedAt(),
-                entity.getCompletedAt()
+                entity.getCompletedAt(),
+                entity.getLogisticsCompany(),
+                entity.getTrackingNo(),
+                entity.getShippedAt(),
+                entity.getReceivedAt()
         );
     }
 

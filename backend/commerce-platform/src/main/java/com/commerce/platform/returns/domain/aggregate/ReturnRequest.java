@@ -24,6 +24,10 @@ public class ReturnRequest {
     private LocalDateTime createdAt;
     private LocalDateTime approvedAt;
     private LocalDateTime completedAt;
+    private String logisticsCompany;
+    private String trackingNo;
+    private LocalDateTime shippedAt;
+    private LocalDateTime receivedAt;
 
     public static ReturnRequest create(Long orderId, Long userId, ReturnReason reason) {
         ReturnRequest request = new ReturnRequest();
@@ -38,7 +42,9 @@ public class ReturnRequest {
     public static ReturnRequest restore(Long id, Long orderId, Long userId, Long refundId,
                                          ReturnReason reason, ReturnStatus status,
                                          LocalDateTime createdAt, LocalDateTime approvedAt,
-                                         LocalDateTime completedAt) {
+                                         LocalDateTime completedAt, String logisticsCompany,
+                                         String trackingNo, LocalDateTime shippedAt,
+                                         LocalDateTime receivedAt) {
         ReturnRequest request = new ReturnRequest();
         request.id = id;
         request.orderId = orderId;
@@ -49,13 +55,26 @@ public class ReturnRequest {
         request.createdAt = createdAt;
         request.approvedAt = approvedAt;
         request.completedAt = completedAt;
+        request.logisticsCompany = logisticsCompany;
+        request.trackingNo = trackingNo;
+        request.shippedAt = shippedAt;
+        request.receivedAt = receivedAt;
         return request;
     }
 
     public void approve() { transitionTo(ReturnStatus.APPROVED, "approve"); this.approvedAt = LocalDateTime.now(); }
     public void reject() { transitionTo(ReturnStatus.REJECTED, "reject"); this.completedAt = LocalDateTime.now(); }
     public void beginReturn() { transitionTo(ReturnStatus.RETURNING, "beginReturn"); }
-    public void receive() { transitionTo(ReturnStatus.RECEIVED, "receive"); }
+    public void beginReturn(String logisticsCompany, String trackingNo) {
+        beginReturn();
+        this.logisticsCompany = logisticsCompany;
+        this.trackingNo = trackingNo;
+        this.shippedAt = LocalDateTime.now();
+    }
+    public void receive() {
+        transitionTo(ReturnStatus.RECEIVED, "receive");
+        this.receivedAt = LocalDateTime.now();
+    }
     public void complete() { transitionTo(ReturnStatus.COMPLETED, "complete"); this.completedAt = LocalDateTime.now(); }
     public void cancel() { transitionTo(ReturnStatus.REJECTED, "cancel"); this.completedAt = LocalDateTime.now(); }
     public void fail() { transitionTo(ReturnStatus.FAILED, "fail"); this.completedAt = LocalDateTime.now(); }
@@ -78,4 +97,8 @@ public class ReturnRequest {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getApprovedAt() { return approvedAt; }
     public LocalDateTime getCompletedAt() { return completedAt; }
+    public String getLogisticsCompany() { return logisticsCompany; }
+    public String getTrackingNo() { return trackingNo; }
+    public LocalDateTime getShippedAt() { return shippedAt; }
+    public LocalDateTime getReceivedAt() { return receivedAt; }
 }

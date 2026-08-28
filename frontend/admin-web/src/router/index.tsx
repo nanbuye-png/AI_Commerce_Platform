@@ -6,6 +6,7 @@ import MerchantListPage from '../features/merchants/MerchantListPage';
 import MerchantDetailPage from '../features/merchants/MerchantDetailPage';
 import ProductReviewPage from '../features/products/ProductReviewPage';
 import OrderListPage from '../features/orders/OrderListPage';
+import OrderDetailPage from '../features/orders/OrderDetailPage';
 import AICenterPage from '../features/ai-center/AICenterPage';
 import AuditLogPage from '../features/audit/AuditLogPage';
 import SettingsPage from '../features/settings/SettingsPage';
@@ -35,6 +36,7 @@ const router = createBrowserRouter([
       { path: 'merchants/:id', element: <MerchantDetailPage /> },
       { path: 'products', element: <ProductReviewPage /> },
       { path: 'orders', element: <OrderListPage /> },
+      { path: 'orders/:orderNo', element: <OrderDetailPage /> },
       { path: 'ai-center', element: <AICenterPage /> },
       { path: 'audit-log', element: <AuditLogPage /> },
       { path: 'settings', element: <SettingsPage /> },

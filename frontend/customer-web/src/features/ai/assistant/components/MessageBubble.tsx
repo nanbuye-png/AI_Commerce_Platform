@@ -5,10 +5,11 @@ import ProductCard from '../../../product/components/ProductCard';
 
 interface MessageBubbleProps {
   message: AIMessage;
-  onProductClick?: (productId: string) => void;
+  onAddToCart?: (skuId: number, productName: string) => void;
+  onConfirmAddToCart?: (skuId: number, quantity: number) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onAddToCart, onConfirmAddToCart }) => {
   const isUser = message.role === 'user';
   const searchResult = message.metadata?.productSearch;
   const now = message.createdAt;
@@ -89,9 +90,33 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                     gap: 8,
                   }}
                 >
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} variant="compact" />
-                  ))}
+                  {products.map((product, index) => {
+                    const source = searchResult.products[index];
+                    return (
+                      <div key={product.id}>
+                        <ProductCard product={product} variant="compact" />
+                        {source.defaultSkuId && onAddToCart && (
+                          <button
+                            type="button"
+                            onClick={() => onAddToCart(source.defaultSkuId as number, source.productName)}
+                            style={{
+                              width: '100%',
+                              marginTop: 6,
+                              padding: '6px 8px',
+                              border: 'none',
+                              borderRadius: 6,
+                              background: 'var(--color-accent)',
+                              color: '#fff',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            加入购物车
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             ) : (
@@ -102,6 +127,31 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           </div>
         )}
         {message.content}
+        {message.metadata?.addToCart?.type === 'add_to_cart_confirmation'
+          && message.metadata.addToCart.skuId
+          && message.metadata.addToCart.quantity
+          && onConfirmAddToCart && (
+            <button
+              type="button"
+              onClick={() => onConfirmAddToCart(
+                message.metadata?.addToCart?.skuId as number,
+                message.metadata?.addToCart?.quantity as number,
+              )}
+              style={{
+                display: 'block',
+                marginTop: 10,
+                padding: '7px 12px',
+                border: '1px solid var(--color-accent)',
+                borderRadius: 6,
+                background: 'transparent',
+                color: 'var(--color-accent)',
+                fontSize: 12,
+                cursor: 'pointer',
+              }}
+            >
+              确认加入购物车
+            </button>
+          )}
       </div>
       {isUser && (
         <div

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { orderApi } from '../../api/orders';
 import type { OrderVO } from '../../api/orders';
 
@@ -25,6 +26,7 @@ const statusColors: Record<string, string> = {
 };
 
 const OrderListPage: React.FC = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<OrderVO[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,16 +55,16 @@ const OrderListPage: React.FC = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-border-light)', background: 'var(--color-bg-secondary)' }}>
-              {['ID', '订单号', '买家ID', '商家ID', '金额', '状态', '创建时间'].map((h) => (
+              {['ID', '订单号', '买家ID', '商家ID', '金额', '状态', '创建时间', '操作'].map((h) => (
                 <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>加载中...</td></tr>
+              <tr><td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>加载中...</td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>暂无数据</td></tr>
+              <tr><td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>暂无数据</td></tr>
             ) : (
               orders.map((o) => (
                 <tr key={o.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
@@ -77,6 +79,7 @@ const OrderListPage: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '12px', color: 'var(--color-text-tertiary)' }}>{o.createdTime ? new Date(o.createdTime).toLocaleDateString('zh-CN') : '-'}</td>
+                  <td style={{ padding: '12px 16px' }}><button onClick={() => navigate(`/orders/${o.orderNo}`)} style={buttonStyle}>详情</button></td>
                 </tr>
               ))
             )}
@@ -86,5 +89,7 @@ const OrderListPage: React.FC = () => {
     </div>
   );
 };
+
+const buttonStyle: React.CSSProperties = { padding: '4px 12px', border: '1px solid var(--color-border)', borderRadius: 6, background: 'transparent', color: 'var(--color-text-secondary)', cursor: 'pointer' };
 
 export default OrderListPage;

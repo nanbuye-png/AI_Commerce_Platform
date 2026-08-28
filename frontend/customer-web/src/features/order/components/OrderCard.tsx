@@ -7,9 +7,11 @@ interface OrderCardProps {
   onPay?: (orderNo: string) => void;
   onCancel?: (orderNo: string) => void;
   onTrack?: (orderNo: string) => void;
+  onConfirm?: (orderNo: string) => void;
+  onAfterSales?: (orderNo: string, type: 'refund' | 'return') => void;
 }
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onPay, onCancel, onTrack }) => {
+const OrderCard: React.FC<OrderCardProps> = ({ order, onPay, onCancel, onTrack, onConfirm, onAfterSales }) => {
   return (
     <div
       style={{
@@ -123,7 +125,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onPay, onCancel, onTrack }
             去付款
           </button>
         )}
-        {order.status === 'pending_payment' && onCancel && (
+        {(order.canCancel ?? order.status === 'pending_payment') && onCancel && (
           <button
             onClick={() => onCancel(order.orderNo)}
             style={{
@@ -138,6 +140,21 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onPay, onCancel, onTrack }
           >
             取消订单
           </button>
+        )}
+        {(order.canConfirm ?? order.status === 'shipped') && onConfirm && (
+          <button onClick={() => onConfirm(order.orderNo)} style={{ padding: '6px 18px', borderRadius: 'var(--radius-sm)', background: 'var(--color-accent)', color: '#fff', fontSize: '13px', border: 'none', cursor: 'pointer' }}>
+            确认收货
+          </button>
+        )}
+        {(order.canRefund ?? ['pending_ship', 'shipped', 'completed'].includes(order.status)) && onAfterSales && (
+          <>
+            <button onClick={() => onAfterSales(order.orderNo, 'refund')} style={{ padding: '6px 18px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>
+              申请退款
+            </button>
+            <button onClick={() => onAfterSales(order.orderNo, 'return')} style={{ padding: '6px 18px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}>
+              申请退货
+            </button>
+          </>
         )}
         {(order.status === 'shipped' || order.status === 'completed') && onTrack && (
           <button

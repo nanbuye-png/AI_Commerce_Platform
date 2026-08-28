@@ -112,6 +112,8 @@ public class MerchantOrderApplicationService {
 
         // 领域行为：由 Order Entity 校验并执行状态流转
         order.ship();
+        order.setLogisticsCompany(request.getLogisticsCompany());
+        order.setTrackingNo(request.getTrackingNo());
         orderRepository.save(order);
 
         eventPublisher.publishEvent(new OrderShippedEvent(orderNo, merchantId));

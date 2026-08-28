@@ -29,6 +29,25 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placehol
     setInput('');
   };
 
+  const handleAddToCart = (skuId: number, productName: string) => {
+    if (loading) return;
+    void sendMessage(`请确认将「${productName}」加入购物车`, {
+      action: 'add_to_cart',
+      skuId,
+      quantity: 1,
+    });
+  };
+
+  const handleConfirmAddToCart = (skuId: number, quantity: number) => {
+    if (loading) return;
+    void sendMessage('确认加入购物车', {
+      action: 'add_to_cart',
+      skuId,
+      quantity,
+      confirmed: true,
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -113,7 +132,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ showQuickActions = true, placehol
           </div>
         )}
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            onAddToCart={handleAddToCart}
+            onConfirmAddToCart={handleConfirmAddToCart}
+          />
         ))}
 
         {/* Loading indicator */}

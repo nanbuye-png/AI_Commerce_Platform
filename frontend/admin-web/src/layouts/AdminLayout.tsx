@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import useAuthStore from '../stores/authStore';
 
 interface SidebarItem { path: string; label: string; icon: string; }
 
@@ -18,7 +19,13 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { userInfo, logout } = useAuthStore();
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  const handleLogout = () => {
+    logout();
+    void navigate('/login', { replace: true });
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -56,8 +63,16 @@ const AdminLayout: React.FC = () => {
         <header style={{ height: 'var(--header-height)', background: 'var(--color-bg-primary)', borderBottom: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 var(--spacing-xl)', position: 'sticky', top: 0, zIndex: 100 }}>
           <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--color-text-primary)' }}>平台管理控制台</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>管理员</span>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', fontSize: '14px', fontWeight: 600 }}>A</div>
+            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{userInfo?.nickname || userInfo?.username || '管理员'}</span>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)', fontSize: '14px', fontWeight: 600 }}>
+              {(userInfo?.nickname || userInfo?.username || 'A').charAt(0).toUpperCase()}
+            </div>
+            <button
+              onClick={handleLogout}
+              style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '13px', cursor: 'pointer' }}
+            >
+              退出登录
+            </button>
           </div>
         </header>
         <main style={{ flex: 1, padding: 'var(--spacing-xl)' }}><Outlet /></main>

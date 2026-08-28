@@ -7,6 +7,15 @@ const MainLayout: React.FC = () => {
   const location = useLocation();
   const { userInfo, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [headerSearchKeyword, setHeaderSearchKeyword] = useState('');
+  const [footerTopic, setFooterTopic] = useState<'about' | 'help' | 'privacy' | 'terms' | null>(null);
+
+  const footerContent = {
+    about: { title: '关于我们', body: 'AI Commerce Platform 是一个面向真实交易流程的 AI 全栈电商演示平台。' },
+    help: { title: '帮助中心', body: '你可以通过商品搜索、购物车、订单、退款退货和 AI 助手完成完整购物流程。遇到登录失效时，请重新登录后再试。' },
+    privacy: { title: '隐私政策', body: '平台仅在完成登录、订单和售后服务所必需的范围内处理账户与交易信息，不会在 AI 请求中记录 JWT、内部令牌或完整用户提示词。' },
+    terms: { title: '用户协议', body: '请在提交订单、支付和申请售后前确认商品及订单信息。涉及加购等写操作时，AI 助手会要求你进行二次确认。' },
+  } as const;
 
   const navItems = [
     { path: '/', label: '首页' },
@@ -91,7 +100,13 @@ const MainLayout: React.FC = () => {
         <div style={{ flex: 1, maxWidth: 360, margin: '0 auto', display: 'none' }} className="desktop-search">
           <input
             placeholder="搜索商品..."
-            onFocus={() => navigate('/search')}
+            value={headerSearchKeyword}
+            onChange={(event) => setHeaderSearchKeyword(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && headerSearchKeyword.trim()) {
+                void navigate(`/search?q=${encodeURIComponent(headerSearchKeyword.trim())}`);
+              }
+            }}
             style={{
               width: '100%',
               height: 36,
@@ -184,15 +199,47 @@ const MainLayout: React.FC = () => {
         }}
       >
         <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-          <span style={{ margin: '0 12px', cursor: 'pointer' }}>关于我们</span>
-          <span style={{ margin: '0 12px', cursor: 'pointer' }}>帮助中心</span>
-          <span style={{ margin: '0 12px', cursor: 'pointer' }}>隐私政策</span>
-          <span style={{ margin: '0 12px', cursor: 'pointer' }}>用户协议</span>
+          {([
+            ['about', '关于我们'],
+            ['help', '帮助中心'],
+            ['privacy', '隐私政策'],
+            ['terms', '用户协议'],
+          ] as const).map(([topic, label]) => (
+            <button
+              key={topic}
+              type="button"
+              onClick={() => setFooterTopic(topic)}
+              style={{ margin: '0 12px', padding: 0, border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', fontSize: 'inherit' }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <div>© {new Date().getFullYear()} AI Commerce Platform. All rights reserved.</div>
       </footer>
 
-      {/* AI Assistant入口占位 */}
+      {footerTopic && (
+        <div
+          role="presentation"
+          onClick={() => setFooterTopic(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.35)' }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="footer-topic-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(480px, 100%)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-primary)', padding: 'var(--spacing-xl)', boxShadow: 'var(--shadow-lg)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 'var(--spacing-md)' }}>
+              <h2 id="footer-topic-title" style={{ margin: 0, fontSize: '20px', color: 'var(--color-text-primary)' }}>{footerContent[footerTopic].title}</h2>
+              <button type="button" aria-label="关闭" onClick={() => setFooterTopic(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--color-text-tertiary)' }}>✕</button>
+            </div>
+            <p style={{ margin: 0, lineHeight: 1.8, color: 'var(--color-text-secondary)' }}>{footerContent[footerTopic].body}</p>
+          </section>
+        </div>
+      )}
+
       <button
         onClick={() => navigate('/ai')}
         style={{

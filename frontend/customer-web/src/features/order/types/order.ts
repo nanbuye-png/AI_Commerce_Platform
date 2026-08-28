@@ -1,4 +1,4 @@
-export type OrderStatus = 'pending_payment' | 'pending_ship' | 'shipped' | 'completed' | 'cancelled' | 'refunding';
+export type OrderStatus = 'pending_payment' | 'pending_ship' | 'shipped' | 'completed' | 'cancelled' | 'refunding' | 'refunded';
 
 export interface OrderItem {
   productId: string;
@@ -22,6 +22,11 @@ export interface Order {
   paidAt?: string;
   shippedAt?: string;
   completedAt?: string;
+  canCancel?: boolean;
+  canConfirm?: boolean;
+  canRefund?: boolean;
+  logisticsCompany?: string;
+  trackingNo?: string;
 }
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
@@ -31,6 +36,7 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   completed: '已完成',
   cancelled: '已取消',
   refunding: '退款中',
+  refunded: '已退款',
 };
 
 export const orderStatusColors: Record<OrderStatus, string> = {
@@ -40,4 +46,5 @@ export const orderStatusColors: Record<OrderStatus, string> = {
   completed: '#86868B',
   cancelled: '#A1A1A6',
   refunding: '#FF453A',
+  refunded: '#34C759',
 };

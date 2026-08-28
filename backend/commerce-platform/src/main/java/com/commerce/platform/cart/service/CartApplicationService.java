@@ -14,6 +14,8 @@ import com.commerce.platform.cart.exception.CartNotFoundException;
 import com.commerce.platform.inventory.stock.domain.aggregate.InventoryStock;
 import com.commerce.platform.inventory.stock.domain.repository.InventoryStockRepository;
 import com.commerce.platform.product.entity.ProductSku;
+import com.commerce.platform.product.entity.Product;
+import com.commerce.platform.product.enums.ProductStatus;
 import com.commerce.platform.product.repository.ProductSkuRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -86,6 +88,35 @@ public class CartApplicationService {
 
         Cart refreshed = cartRepository.findByUserId(userId).orElse(cart);
         return toCartVO(refreshed);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public CartVO addItemBySku(Long userId, Long skuId, Integer quantity) {
+        if (userId == null || userId < 1 || skuId == null || skuId < 1 || quantity == null || quantity < 1) {
+            throw new IllegalArgumentException("加购参数无效");
+        }
+        ProductSku sku = productSkuRepository.findById(skuId)
+                .orElseThrow(() -> new IllegalArgumentException("商品规格不存在"));
+        Product product = sku.getProduct();
+        if (product == null || product.getStatus() != ProductStatus.ON_SHELF) {
+            throw new IllegalArgumentException("商品当前不可购买");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(sku.getStatus())) {
+            throw new IllegalArgumentException("商品规格当前不可购买");
+        }
+
+        AddCartItemRequest request = new AddCartItemRequest();
+        request.setSkuId(sku.getId());
+        request.setProductId(product.getId());
+        request.setProductName(product.getProductName());
+        var coverImage = product.getImages().stream()
+                .filter(image -> Boolean.TRUE.equals(image.getIsCover()))
+                .findFirst()
+                .orElseGet(() -> product.getImages().stream().findFirst().orElse(null));
+        request.setProductImage(coverImage == null ? null : coverImage.getUrl());
+        request.setPrice(sku.getPrice());
+        request.setQuantity(quantity);
+        return addItem(userId, request);
     }
 
     @Transactional(rollbackFor = Exception.class)

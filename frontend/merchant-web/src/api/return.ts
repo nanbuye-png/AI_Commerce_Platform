@@ -10,6 +10,10 @@ export interface ReturnRequestVO {
   createdAt: string;
   approvedAt: string | null;
   completedAt: string | null;
+  logisticsCompany?: string;
+  trackingNo?: string;
+  shippedAt?: string | null;
+  receivedAt?: string | null;
 }
 
 export interface PageResponse<T> {
@@ -38,4 +42,7 @@ export const returnApi = {
 
   reject: (id: number) =>
     request.post<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/api/merchant/returns/${id}/reject`),
+
+  receive: (id: number) =>
+    request.post<Result<ReturnRequestVO>, Result<ReturnRequestVO>>(`/api/merchant/returns/${id}/receive`),
 };

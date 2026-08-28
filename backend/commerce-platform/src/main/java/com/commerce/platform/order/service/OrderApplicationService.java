@@ -10,6 +10,8 @@ import com.commerce.platform.order.dto.request.CreateOrderRequest;
 import com.commerce.platform.order.dto.request.OrderQueryRequest;
 import com.commerce.platform.order.dto.response.CreateOrderResponse;
 import com.commerce.platform.order.dto.response.OrderVO;
+import com.commerce.platform.order.event.OrderCancelledEvent;
+import com.commerce.platform.order.event.OrderCompletedEvent;
 import com.commerce.platform.payment.service.MerchantQrPaymentService;
 import com.commerce.platform.product.entity.ProductSku;
 import com.commerce.platform.product.repository.ProductSkuRepository;
@@ -20,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -44,6 +47,7 @@ public class OrderApplicationService {
     private final ProductSkuRepository productSkuRepository;
     private final InventoryStockRepository inventoryStockRepository;
     private final MerchantQrPaymentService merchantQrPaymentService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 创建订单
@@ -186,5 +190,25 @@ public class OrderApplicationService {
         log.info("查询订单详情 - customerId={}, orderNo={}, 耗时={}ms", buyerId, orderNo, elapsed);
 
         return vo;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO cancelOrder(Long buyerId, String orderNo) {
+        Order order = orderRepository.findByBuyerIdAndOrderNo(buyerId, orderNo)
+                .orElseThrow(() -> new BusinessException(32004, String.format("订单不存在：%s", orderNo)));
+        order.cancel();
+        Order saved = orderRepository.save(order);
+        eventPublisher.publishEvent(new OrderCancelledEvent(saved.getId(), saved.getOrderNo(), buyerId, null, "买家取消订单"));
+        return orderDomainService.buildOrderVO(saved);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OrderVO confirmReceipt(Long buyerId, String orderNo) {
+        Order order = orderRepository.findByBuyerIdAndOrderNo(buyerId, orderNo)
+                .orElseThrow(() -> new BusinessException(32004, String.format("订单不存在：%s", orderNo)));
+        order.complete();
+        Order saved = orderRepository.save(order);
+        eventPublisher.publishEvent(new OrderCompletedEvent(saved.getOrderNo(), buyerId));
+        return orderDomainService.buildOrderVO(saved);
     }
 }

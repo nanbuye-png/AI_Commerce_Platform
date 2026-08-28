@@ -66,6 +66,10 @@ public class OrderVO {
 
     private LocalDateTime cancelledTime;
 
+    private String logisticsCompany;
+
+    private String trackingNo;
+
     private LocalDateTime createdTime;
 
     /**
