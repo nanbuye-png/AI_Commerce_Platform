@@ -8,7 +8,9 @@ interface RoleGuardProps {
 }
 
 const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) => {
-  const { userInfo, isAuthenticated } = useAuthStore();
+  const { userInfo, isAuthenticated, initialized } = useAuthStore();
+
+  if (!initialized) return null;
 
   if (!isAuthenticated || !userInfo) {
     return <Navigate to="/login" replace />;

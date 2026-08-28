@@ -126,7 +126,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onAddToCart, onC
             )}
           </div>
         )}
-        {message.content}
+        <span
+          data-testid={message.metadata?.addToCart?.type === 'add_to_cart_result'
+            && message.metadata.addToCart.success ? 'add-to-cart-success' : undefined}
+        >
+          {message.content}
+        </span>
         {message.metadata?.addToCart?.type === 'add_to_cart_confirmation'
           && message.metadata.addToCart.skuId
           && message.metadata.addToCart.quantity

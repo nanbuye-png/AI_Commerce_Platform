@@ -22,7 +22,7 @@ test.describe('customer AI commerce flow', () => {
     await expect(page.getByRole('button', { name: '确认加入购物车' })).toBeVisible();
 
     await page.getByRole('button', { name: '确认加入购物车' }).click();
-    await expect(page.getByText(/加入购物车|加购成功/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('add-to-cart-success')).toBeVisible({ timeout: 20_000 });
   });
 
   test('does not call AI without a JWT', async ({ page }) => {

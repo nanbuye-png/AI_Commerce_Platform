@@ -8,13 +8,15 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, init } = useAuthStore();
+  const { isAuthenticated, initialized, init } = useAuthStore();
 
   useEffect(() => {
     init();
   }, [init]);
 
   const token = getToken();
+  if (!initialized) return null;
+
   if (!token && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
