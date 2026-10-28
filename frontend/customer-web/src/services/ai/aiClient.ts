@@ -8,6 +8,7 @@ import type {
   AISendMessageOptions,
 } from './aiTypes';
 import { getToken, removeToken } from '../../utils/token';
+import { createUuid } from '../../utils/uuid';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
 
@@ -138,7 +139,7 @@ export const aiClient: AIService = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
-        'X-Request-Id': crypto.randomUUID(),
+        'X-Request-Id': createUuid(),
       },
       body: JSON.stringify({
         message,
@@ -167,7 +168,7 @@ export const aiClient: AIService = {
 
   async createSession(context): Promise<AISession> {
     return {
-      id: crypto.randomUUID(),
+      id: createUuid(),
       messages: [],
       context,
       createdAt: new Date().toISOString(),

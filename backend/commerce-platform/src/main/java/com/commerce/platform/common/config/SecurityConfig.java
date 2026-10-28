@@ -60,8 +60,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/products/**", "/api/categories/**").permitAll()
                 // 上传的静态资源（商品图片）允许匿名访问
                 .requestMatchers("/uploads/**").permitAll()
-                // 文件上传接口（开发阶段允许匿名，生产可收紧为 MERCHANT）
-                .requestMatchers("/api/upload/**").permitAll()
+                // 仅商家可以上传商品图片
+                .requestMatchers("/api/upload/**").hasAuthority("ROLE_MERCHANT")
                 // Customer API
                 .requestMatchers("/api/customer/**").hasAuthority("ROLE_CUSTOMER")
                 // Merchant API

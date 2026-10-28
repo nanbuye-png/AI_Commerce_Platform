@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AIMessage, AISendMessageOptions } from '../services/ai/aiTypes';
 import { aiClient } from '../services/ai/aiClient';
+import { createUuid } from '../utils/uuid';
 
 interface AIState {
   messages: AIMessage[];
@@ -48,12 +49,12 @@ const useAIStore = create<AIState>((set, get) => ({
     }
 
     const userMessage: AIMessage = {
-      id: crypto.randomUUID(),
+      id: createUuid(),
       role: 'user',
       content,
       createdAt: new Date().toISOString(),
     };
-    const assistantMessageId = crypto.randomUUID();
+    const assistantMessageId = createUuid();
     const assistantMessage: AIMessage = {
       id: assistantMessageId,
       role: 'assistant',
@@ -152,7 +153,7 @@ const useAIStore = create<AIState>((set, get) => ({
   clearConversation: () => {
     activeController?.abort();
     activeController = null;
-    set({ messages: [], sessionId: crypto.randomUUID(), loading: false, error: null });
+    set({ messages: [], sessionId: createUuid(), loading: false, error: null });
   },
 
   setError: (error) => set({ error }),

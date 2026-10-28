@@ -4,6 +4,10 @@ interface HealthResponse {
   status?: string;
 }
 
+interface HealthApiResponse {
+  data?: HealthResponse;
+}
+
 const SettingsPage: React.FC = () => {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -13,9 +17,10 @@ const SettingsPage: React.FC = () => {
     setLoading(true);
     try {
       const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
-      const response = await fetch(`${baseUrl}/actuator/health`);
+      const response = await fetch(`${baseUrl}/api/health`);
       if (!response.ok) throw new Error(`health check failed: ${response.status}`);
-      setHealth(await response.json() as HealthResponse);
+      const result = await response.json() as HealthApiResponse;
+      setHealth(result.data ?? null);
     } catch (error) {
       console.error('检查平台状态失败:', error);
       setHealth(null);
