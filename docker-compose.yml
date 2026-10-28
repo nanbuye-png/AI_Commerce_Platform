@@ -31,6 +31,7 @@ services:
       ADMIN_USERNAME: demo_admin
       ADMIN_PASSWORD: Demo123!
       ADMIN_EMAIL: admin@demo.local
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx1g"
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -72,7 +73,7 @@ services:
         APP_NAME: customer-web
         VITE_API_BASE_URL: "/"
     ports:
-      - "127.0.0.1:5173:80"
+      - "5173:80"
     depends_on:
       commerce-core:
         condition: service_healthy
@@ -86,7 +87,7 @@ services:
         APP_NAME: merchant-web
         VITE_API_BASE_URL: "/"
     ports:
-      - "127.0.0.1:5174:80"
+      - "5174:80"
     depends_on:
       commerce-core:
         condition: service_healthy
@@ -100,7 +101,7 @@ services:
         APP_NAME: admin-web
         VITE_API_BASE_URL: "/"
     ports:
-      - "127.0.0.1:5175:80"
+      - "5175:80"
     depends_on:
       commerce-core:
         condition: service_healthy
