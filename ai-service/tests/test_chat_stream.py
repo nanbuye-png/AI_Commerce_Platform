@@ -105,7 +105,7 @@ class StubCommerceTool:
 
     async def search_products(self, intent):
         return {
-            "items": [{"id": 42, "productName": "降噪耳机", "minPrice": 899}],
+            "items": [{"id": 42, "productName": "降噪耳机", "minPrice": 899, "defaultSkuId": 42}],
             "total": 1,
         }
 
@@ -167,6 +167,43 @@ def test_chat_stream_emits_product_search_metadata(monkeypatch) -> None:
         chat_api.provider = original_provider
 
 
+def test_cart_request_searches_merchant_product_and_keeps_history(monkeypatch) -> None:
+    client = _client(monkeypatch)
+    from app.api import chat as chat_api
+
+    original_tool = chat_api.commerce_tool
+    original_provider = chat_api.provider
+    tool = StubCommerceTool()
+    provider = CapturingProvider()
+    chat_api.commerce_tool = tool
+    chat_api.provider = provider
+    try:
+        response = client.post(
+            "/api/v1/internal/ai/chat/stream",
+            headers={"X-Internal-Token": "test-internal-token"},
+            json={
+                "message": "将托尔斯泰加入购物车",
+                "conversation_id": "conv_existing",
+                "history": [
+                    {"role": "user", "content": "你好"},
+                    {"role": "assistant", "content": "您好"},
+                ],
+            },
+        )
+        events = _events(response.text)
+        assert response.status_code == 200
+        assert events[0][1]["query"]["keyword"] == "托尔斯泰"
+        assert events[0][1]["type"] == "product_search"
+        assert tool.add_to_cart_calls == []
+        assert "请点击商品卡片" in "".join(
+            str(data["content"]) for event, data in events if event == "message"
+        )
+        assert provider.context is None
+    finally:
+        chat_api.commerce_tool = original_tool
+        chat_api.provider = original_provider
+
+
 def test_chat_stream_keeps_tokens_when_product_search_fails(monkeypatch) -> None:
     client = _client(monkeypatch)
     from app.api import chat as chat_api
@@ -221,6 +258,7 @@ def test_chat_stream_requires_confirmation_before_add_to_cart(monkeypatch) -> No
         )
         assert tool.add_to_cart_calls == []
         assert provider.context["add_to_cart"]["confirmation_required"] is True
+        assert "product_search" not in provider.context
         assert events[-1][0] == "done"
     finally:
         chat_api.commerce_tool = original_tool

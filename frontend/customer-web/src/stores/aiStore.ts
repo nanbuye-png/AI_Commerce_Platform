@@ -1,11 +1,13 @@
 import { create } from 'zustand';
-import type { AIMessage, AISendMessageOptions } from '../services/ai/aiTypes';
+import type { AIMessage, AISendMessageOptions, AIConversationTurn } from '../services/ai/aiTypes';
 import { aiClient } from '../services/ai/aiClient';
 import { createUuid } from '../utils/uuid';
+import { getToken } from '../utils/token';
 
 interface AIState {
   messages: AIMessage[];
   sessionId: string | null;
+  ownerId: string | null;
   loading: boolean;
   error: string | null;
 
@@ -18,18 +20,57 @@ interface AIState {
 
 let activeController: AbortController | null = null;
 
+function currentOwnerId(): string | null {
+  try {
+    const payload = getToken()?.split('.')[1];
+    const subject = payload && JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))).sub;
+    return typeof subject === 'string' ? subject : null;
+  } catch {
+    return null;
+  }
+}
+
+function storageKey(ownerId: string): string {
+  return `customer_ai_conversation_${ownerId}`;
+}
+
+function saveConversation(state: AIState): void {
+  if (!state.ownerId || !state.sessionId) return;
+  try {
+    sessionStorage.setItem(storageKey(state.ownerId), JSON.stringify({
+      sessionId: state.sessionId,
+      messages: state.messages.slice(-30),
+    }));
+  } catch {
+    // Storage can be disabled or full; the in-memory conversation still works.
+  }
+}
+
 const useAIStore = create<AIState>((set, get) => ({
   messages: [],
   sessionId: null,
+  ownerId: null,
   loading: false,
   error: null,
 
   initializeSession: async () => {
+    const ownerId = currentOwnerId();
+    if (get().ownerId === ownerId && get().sessionId) return;
+    activeController?.abort();
+    activeController = null;
     try {
-      const session = await aiClient.createSession();
+      let parsed: { sessionId?: string; messages?: AIMessage[] } | null = null;
+      try {
+        const saved = ownerId ? sessionStorage.getItem(storageKey(ownerId)) : null;
+        parsed = saved ? JSON.parse(saved) : null;
+      } catch {
+        // Storage is optional; keep the conversation in memory for this page.
+      }
       set({
-        sessionId: session.id,
-        messages: [],
+        sessionId: typeof parsed?.sessionId === 'string' ? parsed.sessionId : createUuid(),
+        messages: Array.isArray(parsed?.messages) ? parsed.messages.slice(-30) : [],
+        ownerId,
+        loading: false,
         error: null,
       });
     } catch {
@@ -38,15 +79,17 @@ const useAIStore = create<AIState>((set, get) => ({
   },
 
   sendMessage: async (content: string, options?: AISendMessageOptions) => {
+    await get().initializeSession();
     const { loading, messages } = get();
     if (loading) return;
 
-    let { sessionId } = get();
-    if (!sessionId) {
-      const session = await aiClient.createSession();
-      sessionId = session.id;
-      set({ sessionId });
-    }
+    const sessionId = get().sessionId;
+    if (!sessionId) return;
+    const history: AIConversationTurn[] = messages
+      .filter((message): message is AIMessage & { role: 'user' | 'assistant' } =>
+        (message.role === 'user' || message.role === 'assistant') && !!message.content.trim())
+      .slice(-12)
+      .map(({ role, content }) => ({ role, content: content.slice(0, 2000) }));
 
     const userMessage: AIMessage = {
       id: createUuid(),
@@ -72,6 +115,7 @@ const useAIStore = create<AIState>((set, get) => ({
         content,
         {
           onToken: (token) => {
+            if (get().sessionId !== sessionId) return;
             set((state) => ({
               messages: state.messages.map((message) =>
                 message.id === assistantMessageId
@@ -81,6 +125,7 @@ const useAIStore = create<AIState>((set, get) => ({
             }));
           },
           onMeta: (meta) => {
+            if (get().sessionId !== sessionId) return;
             set((state) => ({
               messages: state.messages.map((message) => {
                 if (message.id !== assistantMessageId) return message;
@@ -115,16 +160,19 @@ const useAIStore = create<AIState>((set, get) => ({
             }));
           },
           onDone: ({ conversationId, messageId }) => {
+            if (get().sessionId !== sessionId) return;
             set((state) => ({
               sessionId: conversationId,
               messages: state.messages.map((message) =>
                 message.id === assistantMessageId ? { ...message, id: messageId } : message,
               ),
             }));
+            saveConversation(get());
           },
         },
         options,
         controller.signal,
+        history,
       );
       set({ loading: false });
     } catch (error) {
@@ -141,6 +189,7 @@ const useAIStore = create<AIState>((set, get) => ({
       }
     } finally {
       if (activeController === controller) activeController = null;
+      saveConversation(get());
     }
   },
 
@@ -154,6 +203,7 @@ const useAIStore = create<AIState>((set, get) => ({
     activeController?.abort();
     activeController = null;
     set({ messages: [], sessionId: createUuid(), loading: false, error: null });
+    saveConversation(get());
   },
 
   setError: (error) => set({ error }),

@@ -6,6 +6,7 @@ import type {
   AIStreamMeta,
   AIStreamResult,
   AISendMessageOptions,
+  AIConversationTurn,
 } from './aiTypes';
 import { getToken, removeToken } from '../../utils/token';
 import { createUuid } from '../../utils/uuid';
@@ -129,7 +130,7 @@ export async function readEventStream(response: Response, handlers: AIStreamHand
 }
 
 export const aiClient: AIService = {
-  async sendMessage(sessionId, message, handlers, options?: AISendMessageOptions, signal?: AbortSignal): Promise<void> {
+  async sendMessage(sessionId, message, handlers, options?: AISendMessageOptions, signal?: AbortSignal, history?: AIConversationTurn[]): Promise<void> {
     const token = getToken();
     if (!token) throw new Error('请先登录后使用 AI 购物助手');
 
@@ -144,6 +145,7 @@ export const aiClient: AIService = {
       body: JSON.stringify({
         message,
         conversation_id: sessionId,
+        history: history ?? [],
         ...(options?.action ? {
           action: options.action,
           sku_id: options.skuId,

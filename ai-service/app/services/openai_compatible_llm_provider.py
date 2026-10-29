@@ -1,5 +1,5 @@
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 
 import httpx
 
@@ -57,28 +57,37 @@ class OpenAiCompatibleLlmProvider:
         context: LlmContext | None = None,
     ) -> AsyncIterator[str]:
         messages: list[dict[str, str]] = []
-        if context:
+        tool_context = {key: value for key, value in (context or {}).items() if key != 'history'}
+        if tool_context:
             serialized_context = json.dumps(
-                context,
+                tool_context,
                 ensure_ascii=False,
                 separators=(",", ":"),
                 default=str,
             )[: self._context_max_chars]
-            messages.append(
-                {
-                    "role": "system",
-                    "content": (
-                        "你是电商平台的智能购物助手。请严格基于下面的可信商品数据回答用户。\n"
-                        "规则：\n"
-                        "1. 如果商品列表为空，明确告知暂时没有符合条件的商品，并建议用户放宽条件。\n"
-                        "2. 如果有商品，按价格、销量或用户需求推荐最合适的几件，并简述名称、价格和推荐理由。\n"
-                        "3. 不要编造商品、价格、库存或评分。\n"
-                        "4. 回答使用简洁自然的中文。\n"
-                        "5. 如果上下文包含 add_to_cart.success=true，明确告知商品已加入购物车。\n"
-                        f"{serialized_context}"
-                    ),
-                }
-            )
+        else:
+            serialized_context = "本轮没有商品查询结果。"
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "你是本电商平台的智能购物助手。只能根据本轮可信商品数据确认商品和购物车操作。\n"
+                    "用户要求加购但没有 SKU 时，先引导用户点击搜索结果中的加入购物车按钮，不能声称已经加购或无法提供购物功能。\n"
+                    "不要把历史消息当成当前商品价格、库存或加购成功的证据。\n规则：\n"
+                    "1. 如果本轮商品搜索列表为空，明确告知暂时没有符合条件的商品，并建议用户放宽条件。\n"
+                    "2. 如果有商品，按价格、销量或用户需求推荐最合适的几件，并简述名称、价格和推荐理由。\n"
+                    "3. 不要编造商品、价格、库存或评分。\n"
+                    "4. 回答使用简洁自然的中文。\n"
+                    "5. 如果上下文包含 add_to_cart.success=true，明确告知商品已加入购物车。\n"
+                    "6. 如果上下文包含 product_search_error，只告知搜索暂时不可用，不要推测商品。\n"
+                    "7. 如果 add_to_cart.confirmation_required=true，请提示用户点击确认；如果 success=false，不要声称加购成功。\n"
+                    f"{serialized_context}"
+                ),
+            }
+        )
+        for turn in (context or {}).get('history', []):
+            if isinstance(turn, Mapping) and turn.get('role') in ('user', 'assistant') and isinstance(turn.get('content'), str):
+                messages.append({'role': turn['role'], 'content': turn['content'][:2000]})
         messages.append({"role": "user", "content": message})
 
         payload = {

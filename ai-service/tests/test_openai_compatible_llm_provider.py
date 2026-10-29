@@ -74,6 +74,33 @@ def test_stream_posts_openai_compatible_request_and_yields_content() -> None:
     asyncio.run(provider._client.aclose())
 
 
+def test_stream_passes_previous_turns_to_model() -> None:
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["messages"] = json.loads(request.content)["messages"]
+        return httpx.Response(200, content=b'data: [DONE]\n\n')
+
+    async def run_test() -> None:
+        provider = _provider(handler)
+        try:
+            _ = [token async for token in provider.stream(
+                "还有吗？",
+                {"history": [
+                    {"role": "user", "content": "推荐托尔斯泰"},
+                    {"role": "assistant", "content": "找到一本书"},
+                ]},
+            )]
+        finally:
+            await provider._client.aclose()
+
+    asyncio.run(run_test())
+    assert [turn["role"] for turn in captured["messages"]] == [
+        "system", "user", "assistant", "user",
+    ]
+    assert captured["messages"][-1]["content"] == "还有吗？"
+
+
 def test_stream_maps_upstream_http_error_without_exposing_response() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"error": {"message": "secret details"}})

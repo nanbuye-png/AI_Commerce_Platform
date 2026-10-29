@@ -5,7 +5,7 @@ from app.models.chat import ProductSearchIntent
 
 
 class ProductSearchIntentParser:
-    _SEARCH_MARKERS = ("找", "搜索", "推荐", "商品", "买", "看看", "有没有", "想要", "想买", "咨询")
+    _SEARCH_MARKERS = ("找", "搜索", "推荐", "商品", "买", "看看", "有没有", "想要", "想买", "咨询", "加入购物车", "加购")
     _HOT_MARKERS = ("热销", "热门", "爆款", "最火", "热卖", "排行", "best", "top")
     _MORE_MARKERS = ("更多", "再来", "再推荐", "换一批", "下一批", "其他", "others")
 
@@ -68,8 +68,12 @@ class ProductSearchIntentParser:
             return None
 
         min_price, max_price = self._extract_price_range(normalized)
+        cart_match = re.search(r"(?:请|帮我|给我|把|将|我要|我想)?\s*(.+?)\s*(?:加入购物车|加购)", normalized)
+        cart_keyword = cart_match.group(1).strip("把将请，。！ ") if cart_match else None
         keyword_raw = next((term for term in self._PRODUCT_TERMS if term in normalized), None)
-        if keyword_raw:
+        if cart_keyword:
+            keyword = cart_keyword
+        elif keyword_raw:
             keyword = self._SYNONYMS.get(keyword_raw, keyword_raw)
         else:
             keyword = self._fallback_keyword(normalized)
@@ -117,7 +121,7 @@ class ProductSearchIntentParser:
         cleaned = re.sub(r"\d+(?:\.\d+)?\s*(?:元)?\s*(?:到|至|[-~～])?", " ", message)
         for word in ("请", "帮我", "给我", "找", "搜索", "推荐", "商品", "买", "看看", "有没有",
                      "想要", "想买", "咨询", "以内", "以下", "以上", "左右", "推荐一下", "有没有推荐",
-                     "热销", "热门", "爆款", "最火", "热卖", "更多", "再来", "再推荐", "换一批", "其他"):
+                     "热销", "热门", "爆款", "最火", "热卖", "更多", "再来", "再推荐", "换一批", "其他", "把", "将", "加入购物车", "加购"):
             cleaned = cleaned.replace(word, " ")
         cleaned = re.sub(r"[，。！？,.!?\s]+", "", cleaned)
         return cleaned[:40] or None

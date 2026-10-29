@@ -73,3 +73,15 @@ def test_parses_more_products() -> None:
 
 def test_ignores_general_conversation() -> None:
     assert parser.parse("你好，今天怎么样？") is None
+
+
+def test_searches_merchant_product_name_from_cart_request() -> None:
+    intent = parser.parse("将托尔斯泰加入购物车")
+    assert intent is not None
+    assert intent.keyword == "托尔斯泰"
+
+
+def test_cart_request_keeps_full_product_name() -> None:
+    intent = parser.parse("将男士修身牛仔裤加入购物车")
+    assert intent is not None
+    assert intent.keyword == "男士修身牛仔裤"

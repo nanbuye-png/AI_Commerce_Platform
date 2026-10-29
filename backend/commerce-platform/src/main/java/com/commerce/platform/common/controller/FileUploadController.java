@@ -1,7 +1,6 @@
 package com.commerce.platform.common.controller;
 
 import com.commerce.platform.common.entity.Result;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
@@ -25,7 +24,7 @@ import java.util.UUID;
 
 /**
  * 文件上传 Controller
- * 将图片保存到本地 uploads/ 目录，返回可访问的完整 URL：http://host/uploads/...
+ * 将图片保存到本地 uploads/ 目录，返回相对 URL：/uploads/...
  */
 @Slf4j
 @RestController
@@ -43,8 +42,7 @@ public class FileUploadController {
     private static final Path UPLOAD_ROOT = Paths.get("uploads").toAbsolutePath().normalize();
 
     @PostMapping("/image")
-    public Result<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file,
-                                                   HttpServletRequest request) {
+    public Result<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("上传文件不能为空");
         }
@@ -76,13 +74,9 @@ public class FileUploadController {
 
             Files.copy(file.getInputStream(), targetFile, StandardCopyOption.REPLACE_EXISTING);
 
-            // 构造完整 URL，使 C 端(5173)/M 端(5174) 都能直接访问
-            String scheme = request.getScheme();
-            String host = request.getServerName();
-            int port = request.getServerPort();
-            String base = scheme + "://" + host + (port != 80 && port != 443 ? ":" + port : "");
+            // 相对 URL 可通过顾客端和商家端各自的 /uploads/ 代理访问
             String relativePath = "/uploads/" + datePath + "/" + filename;
-            String url = base + relativePath;
+            String url = relativePath;
 
             log.info("Uploaded file: {} -> {} (url={})", originalFilename, targetFile, url);
 

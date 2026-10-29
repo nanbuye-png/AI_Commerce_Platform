@@ -96,7 +96,7 @@ describe('AI SSE client', () => {
       skuId: 42,
       quantity: 2,
       confirmed: true,
-    });
+    }, undefined, [{ role: 'user', content: '推荐托尔斯泰' }]);
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.headers).toEqual(expect.objectContaining({
@@ -108,6 +108,7 @@ describe('AI SSE client', () => {
       sku_id: 42,
       quantity: 2,
       confirmed: true,
+      history: [{ role: 'user', content: '推荐托尔斯泰' }],
     }));
   });
 });

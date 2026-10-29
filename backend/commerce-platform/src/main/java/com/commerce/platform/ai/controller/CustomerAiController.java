@@ -46,7 +46,7 @@ public class CustomerAiController {
         Long userId = (Long) authentication.getPrincipal();
         ChatStreamRequest authenticatedRequest = new ChatStreamRequest(
                 request.message(), request.conversationId(), userId, request.action(),
-                request.skuId(), request.quantity(), request.confirmed());
+                request.skuId(), request.quantity(), request.confirmed(), request.history());
         aiGatewayService.stream(authenticatedRequest, resolvedRequestId,
                 event -> writeEvent(response, event));
     }

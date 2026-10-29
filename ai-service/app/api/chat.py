@@ -64,6 +64,9 @@ async def _stream_chat(request: ChatStreamRequest, request_id: str) -> AsyncIter
     conversation_id = request.conversation_id or f"conv_{uuid4().hex}"
     message_id = f"msg_{uuid4().hex}"
     llm_context: dict[str, object] = {}
+    cart_search_response: str | None = None
+    if request.history:
+        llm_context["history"] = [turn.model_dump() for turn in request.history]
 
     try:
         action_decision = decide_add_to_cart(
@@ -127,7 +130,7 @@ async def _stream_chat(request: ChatStreamRequest, request_id: str) -> AsyncIter
                 llm_context["add_to_cart"] = result
                 yield _sse("meta", result)
 
-        intent = intent_parser.parse(request.message)
+        intent = intent_parser.parse(request.message) if request.action is None else None
         if intent is not None:
             scenario = "product_search" if scenario == "chat" else scenario
             tool_started = time.perf_counter()
@@ -145,6 +148,13 @@ async def _stream_chat(request: ChatStreamRequest, request_id: str) -> AsyncIter
                 }
                 llm_context["product_search"] = product_search
                 yield _sse("meta", {"type": "product_search", **product_search})
+                if request.action is None and ("加入购物车" in request.message or "加购" in request.message):
+                    if not result["items"]:
+                        cart_search_response = "暂未找到这件商品，请确认商品名称或先在商品页搜索。"
+                    elif any(isinstance(item, dict) and item.get("defaultSkuId") for item in result["items"]):
+                        cart_search_response = "已找到商品。请点击商品卡片的「加入购物车」，再确认商品和数量。"
+                    else:
+                        cart_search_response = "已找到商品，但目前没有可加购的规格。"
             except CommerceToolError:
                 usage_tracker.record_tool(
                     "product_search",
@@ -155,9 +165,13 @@ async def _stream_chat(request: ChatStreamRequest, request_id: str) -> AsyncIter
                     "meta",
                     {"type": "product_search_error", "message": public_error_message("product_search")},
                 )
+                llm_context["product_search_error"] = public_error_message("product_search")
+                if request.action is None and ("加入购物车" in request.message or "加购" in request.message):
+                    cart_search_response = public_error_message("product_search")
 
         try:
-            async for token in provider.stream(request.message, llm_context or None):
+            source = _single_response(cart_search_response) if cart_search_response is not None else provider.stream(request.message, llm_context or None)
+            async for token in source:
                 if first_token_at is None:
                     first_token_at = time.perf_counter()
                 output_chars += len(token)
@@ -192,6 +206,10 @@ async def _stream_chat(request: ChatStreamRequest, request_id: str) -> AsyncIter
             (finished - started) * 1000,
             error_type or "none",
         )
+
+
+async def _single_response(message: str) -> AsyncIterator[str]:
+    yield message
 
 
 @router.post(

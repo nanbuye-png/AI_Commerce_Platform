@@ -72,7 +72,7 @@ const ProductEditPage: React.FC = () => {
       }
     } catch (err) {
       console.error('图片上传失败:', err);
-      setError('图片上传失败，请重试');
+      setError(err instanceof Error ? err.message : '图片上传失败，请重试');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

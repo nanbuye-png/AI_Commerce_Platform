@@ -18,7 +18,7 @@ export const uploadApi = {
    * @param file 图片文件
    */
   async uploadImage(file: File): Promise<string> {
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    const baseURL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
 
     const formData = new FormData();
     formData.append('file', file);
@@ -43,6 +43,7 @@ export const uploadApi = {
     }
 
     if (!resp.ok) {
+      if (resp.status === 413) throw new Error('图片不能超过 10MB');
       let message = `上传失败（HTTP ${resp.status}）`;
       try {
         const body = await resp.json();
@@ -54,6 +55,11 @@ export const uploadApi = {
     }
 
     const result = (await resp.json()) as ApiResult<{ url: string }>;
-    return result?.data?.url ?? '';
+    if (result.code !== 0 || !result.data?.url) {
+      throw new Error(result.message || '服务器未返回图片地址');
+    }
+    return result.data.url.startsWith('/') && baseURL
+      ? `${baseURL}${result.data.url}`
+      : result.data.url;
   },
 };

@@ -67,6 +67,11 @@ export interface AISendMessageOptions {
   readonly confirmed?: boolean;
 }
 
+export interface AIConversationTurn {
+  readonly role: 'user' | 'assistant';
+  readonly content: string;
+}
+
 export type AIStreamMeta =
   | {
       readonly type: 'product_search';
@@ -160,6 +165,7 @@ export interface AIService {
     handlers: AIStreamHandlers,
     options?: AISendMessageOptions,
     signal?: AbortSignal,
+    history?: AIConversationTurn[],
   ): Promise<void>;
   /** 创建新会话 */
   createSession(context?: AISession['context']): Promise<AISession>;
